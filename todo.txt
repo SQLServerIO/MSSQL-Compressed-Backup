@@ -1,0 +1,30 @@
+Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
+restore on top of an existing database? no error message
+package version number does not match assembly's version number.
+cntl-c kills the app, but we can handle the event: http://www.codeneverwritten.com/2006/10/ctrl-c-and-net-console-application.html
+Do escaped cmd line args work?
+error on overwrite? 
+
+does it work w/ SQL express? yes, but I have sql installed too.
+
+better device timeout, longer execution timeout (db might be locked)
+check file extensions
+
+document:
+only works on the same machine as SQL Server
+how to do log backups
+which compression should I use?  How do they compare?
+list plugins
+
+
+roadmap:
+gui
+when overwriting a file, don't destroy/recreate, but overwrite in place to preserve a defraged file.
+encryption plugin
+ftp plugin
+7z plugin
+zip plugin
+
+done:
+striped backups
+make it SQL 2000 compatible.

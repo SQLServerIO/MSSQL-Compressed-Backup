@@ -1,0 +1,2 @@
+ICSharpCode.SharpZipLib.dll is from http://www.icsharpcode.net/OpenSource/SharpZipLib/
+It is version 0.85.4.369, built 9/9/2007 by the icsharpcode project.
