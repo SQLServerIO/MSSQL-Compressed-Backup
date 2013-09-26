@@ -1,22 +1,28 @@
-/*
-	Copyright 2009 Clay Lenhart <clay@lenharts.net>
+/*************************************************************************************\
+File Name  :  SqlThread.cs
+Project    :  MSSQL Compressed Backup
 
+Copyright 2009 Clay Lenhart <clay@lenharts.net>
 
-	This file is part of MSSQL Compressed Backup.
+This file is part of MSSQL Compressed Backup.
 
-    MSSQL Compressed Backup is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+MSSQL Compressed Backup is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+MSSQL Compressed Backup is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-*/
+You should have received a copy of the GNU General Public License
+along with MSSQL Compressed Backup.  If not, see <http://www.gnu.org/licenses/>.
+
+THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
+EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+\*************************************************************************************/
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +31,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Threading;
 
+//Additional includes other than default dot net framework should go here.
 using MSBackupPipe.StdPlugins;
 
 namespace MSBackupPipe.Common
@@ -40,11 +47,27 @@ namespace MSBackupPipe.Common
         /// <summary>
         /// Returns the auto-generated device names
         /// </summary>
-        public List<string> PreConnect(string clusterNetworkName, string instanceName, string deviceSetName, int numDevices, IBackupDatabase dbComponent, Dictionary<string, List<string>> dbConfig, bool isBackup, IUpdateNotification notifier, out long estimatedTotalBytes)
+        public List<string> PreConnect(string clusterNetworkName, string instanceName, string deviceSetName, int numDevices, IBackupDatabase dbComponent, Dictionary<string, List<string>> dbConfig, int isBackup, IUpdateNotification notifier, out long estimatedTotalBytes)
         {
             string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
             string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
-            string connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=SSPI;Asynchronous Processing=true;", dataSource);
+            string connectionString = "";
+            if (dbConfig.ContainsKey("user"))
+            {
+                if (dbConfig.ContainsKey("password"))
+                {
+                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource,dbConfig["user"][0].ToString(), dbConfig["password"][0].ToString());
+                }
+                else
+                {
+                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource,dbConfig["user"][0].ToString(), null);
+                }
+            }
+            else
+            {
+                connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;Asynchronous Processing=true;",dataSource);
+            }
+            
 
             notifier.OnConnecting(string.Format("Connecting: {0}", connectionString));
 
@@ -55,21 +78,39 @@ namespace MSBackupPipe.Common
             deviceNames.Add(deviceSetName);
             for (int i = 1; i < numDevices; i++)
             {
-                deviceNames.Add(string.Format("dev{0}", i));
+                deviceNames.Add(Guid.NewGuid().ToString());
             }
 
             mCmd = new SqlCommand();
             mCmd.Connection = mCnn;
             mCmd.CommandTimeout = 0;
-            if (isBackup)
+            estimatedTotalBytes = 0;
+            switch (isBackup)
             {
-                dbComponent.ConfigureBackupCommand(dbConfig, deviceNames, mCmd);
-                estimatedTotalBytes = CalculateEstimatedDatabaseSize(mCnn, dbConfig);
-            }
-            else
-            {
-                dbComponent.ConfigureRestoreCommand(dbConfig, deviceNames, mCmd);
-                estimatedTotalBytes = 0;
+                case 1:
+                    dbComponent.ConfigureBackupCommand(dbConfig, deviceNames, mCmd);
+                    estimatedTotalBytes = CalculateEstimatedDatabaseSize(mCnn, dbConfig);
+                    break;
+                case 2:
+                    dbComponent.ConfigureRestoreCommand(dbConfig, deviceNames, mCmd);
+                    estimatedTotalBytes = 0;
+                    break;
+                case 3:
+                    dbComponent.ConfigureVerifyCommand(dbConfig, deviceNames, mCmd);
+                    estimatedTotalBytes = 0;
+                    break;
+                case 4:
+                    dbComponent.ConfigureHeaderOnlyCommand(dbConfig, deviceNames, mCmd);
+                    estimatedTotalBytes = 0;
+                    break;
+                case 5:
+                    dbComponent.ConfigureFileListCommand(dbConfig, deviceNames, mCmd);
+                    estimatedTotalBytes = 0;
+                    break;
+
+                default:
+                    Console.WriteLine("Default case");
+                    break;
             }
 
             return deviceNames;
@@ -127,10 +168,7 @@ namespace MSBackupPipe.Common
                         throw new InvalidCastException(string.Format("Unknown units (usually this is KB): ", sizeStr));
                     }
                 }
-
             }
-
-
 
             // differiential? DIFF_MAP? http://social.msdn.microsoft.com/Forums/en-SG/sqldisasterrecovery/thread/7a5ea034-9c5a-4531-a0b3-40f67c9cef4a
             // Paul's got it. :)  Code for differential estimation heavily influenced by:
@@ -192,9 +230,6 @@ namespace MSBackupPipe.Common
 		                    FROM @tempDbccPage
 		                    WHERE Value = '    CHANGED'
 			                    AND ParentObject LIKE 'DIFF_MAP%';
-                    			
-                    		
-                    		
                     		
 		                    SET @extentID = @extentID + 511232;
 	                    END
@@ -208,7 +243,6 @@ namespace MSBackupPipe.Common
 
                     SELECT Field 
                     from @result;
-
                     ";
 
                 string sql2000 = @"/* 2000 */
@@ -217,15 +251,11 @@ namespace MSBackupPipe.Common
 
                     DECLARE @dbName nvarchar(128);
                     SET @dbName = DB_NAME();
-                    
-                    
 
                     DECLARE dbFiles CURSOR FOR
 	                    SELECT fileid, size
 	                    FROM sysfiles
 	                    WHERE (status & 0x2) > 0 AND (status & 0x40) = 0
-		                  
-		                    
                     	
                     DECLARE @result TABLE
                     (
@@ -261,7 +291,6 @@ namespace MSBackupPipe.Common
 			                    + CAST(@file_id as varchar(20)) + ','
 			                    + CAST(@pageID as varchar(20)) + ','
 			                    + '3) WITH TABLERESULTS, NO_INFOMSGS';
-                    			
 		                   
                             DELETE FROM #tempDbccPage;
 		                    INSERT INTO #tempDbccPage EXEC sp_executesql @sql, N'@sqlDbName nvarchar(128)', @sqlDbName = @dbName;
@@ -271,9 +300,6 @@ namespace MSBackupPipe.Common
 		                    FROM #tempDbccPage
 		                    WHERE Value = '    CHANGED'
 			                    AND ParentObject LIKE 'DIFF_MAP%';
-                    			
-                    		
-                    		
                     		
 		                    SET @extentID = @extentID + 511232;
 	                    END
@@ -293,8 +319,6 @@ namespace MSBackupPipe.Common
                 {
                     throw new InvalidOperationException(string.Format("Differential backups only work on SQL Server 2000 or greater. Version found: {0}", version));
                 }
-
-
 
                 sql2000 = string.Format(sql2000, databaseName);
 
@@ -324,15 +348,11 @@ namespace MSBackupPipe.Common
                         return size;
                     }
                 }
-
             }
-
-
 
             // transaction log suggestions here: http://www.eggheadcafe.com/software/aspnet/32622031/how-big-will-my-backup-be.aspx
             if (backupType == "log")
             {
-
                 string sql = @"
                         CREATE TABLE #t
                         (
@@ -340,7 +360,6 @@ namespace MSBackupPipe.Common
 	                        [Log Size (MB)] nvarchar(100),
 	                        [Log Space Used (%)] nvarchar(100),
 	                        Status nvarchar(20)
-
                         );
 
                         INSERT INTO #t
@@ -349,7 +368,6 @@ namespace MSBackupPipe.Common
                         select CAST(CAST([Log Size (MB)] as float) * CAST([Log Space Used (%)] AS float) / 100.0 * 1024.0 * 1024.0 AS bigint) AS LogUsed 
                         from #t
                         WHERE [Database Name] = @dbNameParam;
-
                         ";
 
                 using (SqlCommand cmd = new SqlCommand(string.Format(sql, databaseName), cnn))
@@ -368,8 +386,6 @@ namespace MSBackupPipe.Common
                     }
                 }
             }
-
-
 
             throw new NotImplementedException();
         }
@@ -393,7 +409,6 @@ namespace MSBackupPipe.Common
             if (twoParts.Length == 2 && !string.IsNullOrEmpty(twoParts[1].Trim()))
             {
                 // We're working with the first example: "(1:0)        - (1:24)      "
-
                 try
                 {
                     long startPage = ConvertExtentPartToPageNumber(twoParts[0]);
@@ -410,30 +425,21 @@ namespace MSBackupPipe.Common
             else
             {
                 // We're working with the second example: "(1:48)       -             "
-
                 // it's always 8 pages (of 8K). 8 pages == 1 extent:
-
                 return 8L * (8L * 1024L);
-
             }
-
         }
 
         private static long ConvertExtentPartToPageNumber(string extentPartDescrption)
         {
             // extentPartDescrption is in the format "(1:48)      ".  In this example, this method returns 48.
-
-
             extentPartDescrption = extentPartDescrption.Trim();
-
             if (extentPartDescrption[0] != '('
                 || extentPartDescrption[extentPartDescrption.Length - 1] != ')')
             {
                 throw new InvalidOperationException(string.Format("Unexpected extent part description: {0}", extentPartDescrption));
             }
-
             extentPartDescrption = extentPartDescrption.Substring(1, extentPartDescrption.Length - 2);
-
             try
             {
                 return long.Parse(extentPartDescrption.Substring(extentPartDescrption.IndexOf(':') + 1));
@@ -454,9 +460,10 @@ namespace MSBackupPipe.Common
 
         private static int GetMajorVersionNumber(string version)
         {
+            //TODO: simplify checker
+            //could get edition and version number from SELECT SERVERPROPERTY('Edition') and SELECT SERVERPROPERTY('ProductVersion')
             // example string:
             // Microsoft SQL Server 2008 (SP1) - 10.0.2531.0 (Intel X86)   Mar 29 2009 10:27:29   Copyright (c) 1988-2008 Microsoft Corporation  Developer Edition on Windows NT 5.1 <X86> (Build 2600: Service Pack 3) 
-
 
             int dashPos = version.IndexOf('-');
             if (dashPos < 0)
@@ -483,7 +490,14 @@ namespace MSBackupPipe.Common
         public void BeginExecute()
         {
             mAsyncResult = mCmd.BeginExecuteNonQuery();
+            //get return message from query giving us the standard backup/restore finish message
+            mCnn.InfoMessage += delegate(object sender, SqlInfoMessageEventArgs e)
+            {
+                Console.WriteLine(e.Message);
+            };
+
         }
+
         public Exception EndExecute()
         {
             try
@@ -496,7 +510,6 @@ namespace MSBackupPipe.Common
                 return e;
             }
         }
-
 
         public void Dispose()
         {
@@ -525,21 +538,15 @@ namespace MSBackupPipe.Common
                         mCnn.Dispose();
                     }
                     mCnn = null;
-
                 }
 
                 // There are no unmanaged resources to release, but
                 // if we add them, they need to be released here.
             }
             mDisposed = true;
-
             // If it is available, make the call to the
             // base class's Dispose(Boolean) method
             //base.Dispose(disposing);
-
         }
-
-
-
     }
 }

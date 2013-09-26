@@ -1,22 +1,28 @@
-﻿/*
-	Copyright 2009 Clay Lenhart <clay@lenharts.net>
+﻿/*************************************************************************************\
+File Name  :  TrackingStream.cs
+Project    :  MSSQL Compressed Backup
 
+Copyright 2009 Clay Lenhart <clay@lenharts.net>
 
-	This file is part of MSSQL Compressed Backup.
+This file is part of MSSQL Compressed Backup.
 
-    MSSQL Compressed Backup is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+MSSQL Compressed Backup is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+MSSQL Compressed Backup is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-*/
+You should have received a copy of the GNU General Public License
+along with MSSQL Compressed Backup.  If not, see <http://www.gnu.org/licenses/>.
+
+THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
+EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+\*************************************************************************************/
 
 using System;
 using System.Collections.Generic;
@@ -41,38 +47,18 @@ namespace MSBackupPipe.StdPlugins
         }
 
         public override bool CanRead { get { return mSourceStream.CanRead; } }
-
-
         public override bool CanSeek { get { return false; } }
-
-
-
         public override bool CanTimeout { get { return mSourceStream.CanTimeout; } }
-
-
         public override bool CanWrite { get { return mSourceStream.CanWrite; } }
-
         public override long Length { get { return mSourceStream.Length; } }
-
-
         public override long Position { get { return mSourceStream.Position; } set { throw new NotSupportedException(); } }
-
-
         public override int ReadTimeout { get { return mSourceStream.ReadTimeout; } set { mSourceStream.ReadTimeout = value; } }
-
-
         public override int WriteTimeout { get { return mSourceStream.WriteTimeout; } set { mSourceStream.WriteTimeout = value; } }
-
-
-
-
-
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
         {
             return mSourceStream.BeginRead(buffer, offset, count, callback, state);
         }
-
 
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
         {
@@ -85,22 +71,15 @@ namespace MSBackupPipe.StdPlugins
             return mSourceStream.BeginWrite(buffer, offset, count, callback, state);
         }
 
-
         public override void Close()
         {
             mSourceStream.Close();
         }
 
-
-
-
-
-
         protected override void Dispose(bool disposing)
         {
             mSourceStream.Dispose();
         }
-
 
         public override int EndRead(IAsyncResult asyncResult)
         {
@@ -114,19 +93,15 @@ namespace MSBackupPipe.StdPlugins
             return bytesRead;
         }
 
-
         public override void EndWrite(IAsyncResult asyncResult)
         {
             mSourceStream.EndWrite(asyncResult);
         }
 
-
         public override void Flush()
         {
             mSourceStream.Flush();
         }
-
-
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -142,22 +117,15 @@ namespace MSBackupPipe.StdPlugins
             return bytesRead;
         }
 
-
-
-
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotSupportedException();
         }
 
-
         public override void SetLength(long value)
         {
             mSourceStream.SetLength(value);
         }
-
-
-
 
         public override void Write(byte[] buffer, int offset, int count)
         {
@@ -169,7 +137,5 @@ namespace MSBackupPipe.StdPlugins
                 mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
             }
         }
-
-
     }
 }

@@ -1,23 +1,28 @@
-/*
-	Copyright 2009 Clay Lenhart <clay@lenharts.net>
+/*************************************************************************************\
+File Name  :  TripleDESTransform.cs
+Project    :  MSSQL Compressed Backup
 
+Copyright 2009 Clay Lenhart <clay@lenharts.net>
 
-	This file is part of MSSQL Compressed Backup.
+This file is part of MSSQL Compressed Backup.
 
-    MSSQL Compressed Backup is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+MSSQL Compressed Backup is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+MSSQL Compressed Backup is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-*/
+You should have received a copy of the GNU General Public License
+along with MSSQL Compressed Backup.  If not, see <http://www.gnu.org/licenses/>.
 
+THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
+EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+\*************************************************************************************/
 
 using System;
 using System.Collections.Generic;
@@ -30,7 +35,6 @@ namespace MSBackupPipe.StdPlugins
 {
     public class Zip64Transform : IBackupTransformer
     {
-
         private static Dictionary<string, ParameterInfo> mBackupParamSchema;
         private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
         static Zip64Transform()
@@ -39,17 +43,14 @@ namespace MSBackupPipe.StdPlugins
             mBackupParamSchema.Add("level", new ParameterInfo(false, false));
             mBackupParamSchema.Add("filename", new ParameterInfo(false, false));
 
-
             mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
             mRestoreParamSchema.Add("filename", new ParameterInfo(false, false));
         }
-
 
         #region IBackupTransformer Members
 
         public Stream GetBackupWriter(Dictionary<string, List<string>> config, Stream writeToStream)
         {
-
             ParameterInfo.ValidateParams(mBackupParamSchema, config);
 
             string filename = "database.bak";
@@ -74,12 +75,7 @@ namespace MSBackupPipe.StdPlugins
             {
                 filename = config["filename"][0];
             }
-
-
-
-            Console.WriteLine(string.Format("zip64: level = {0}, filename={1}", level, filename));
-
-
+            Console.WriteLine(string.Format("Compressor: zip64 - level = {0}, filename={1}", level, filename));
 
             return new OneFileZipOutputStream(filename, level, writeToStream);
         }
@@ -99,8 +95,7 @@ namespace MSBackupPipe.StdPlugins
                 filename = config["filename"][0];
             }
 
-
-            Console.WriteLine(string.Format("zip64"));
+            Console.WriteLine(string.Format("Decompressor: zip64"));
 
             if (filename == null)
             {
@@ -116,28 +111,11 @@ namespace MSBackupPipe.StdPlugins
         {
             get
             {
-                return @"zip64 Usage:
-zip64 will compress (or uncompress) the data.
-By default zip64 compresses with level=7, and the internal filename is 
-database.bak.  You use a level from 1 to 9, for 
-example:
-    zip64(level=5)
-and an internal filename like:
-    zip64(level=5;filename=model.bak)
-Level is ignored when restoring a database since the data is being uncompressed.
-zip64 creates a zip file in the new zip64 format to overcome 4 GB uncompressed
-file limitation.
-";
-
+                return @"zip64 Usage: \nzip64 will compress (or uncompress) the data. \nBy default zip64 compresses with level=7, and the internal filename is \ndatabase.bak.  You use a level from 1 to 9 \nExample: \nzip64(level=5) \nand an internal filename like: \nzip64(level=5;filename=model.bak) \nLevel is ignored when restoring a database since the data is being uncompressed. \nzip64 creates a zip file in the new zip64 format to overcome 4 GB uncompressed \nfile limitation.";
             }
         }
 
         #endregion
-
-
-
-
-
 
         private class OneFileZipOutputStream : ZipOutputStream
         {
@@ -145,17 +123,12 @@ file limitation.
             public OneFileZipOutputStream(string internalFilename, int compressionLevel, Stream writeToStream)
                 : base(writeToStream)
             {
-
-
                 ZipEntry entry = new ZipEntry(internalFilename);
-
 
                 base.IsStreamOwner = true;
                 base.PutNextEntry(entry);
                 base.SetLevel(compressionLevel);
-
             }
-
 
             protected override void Dispose(bool disposing)
             {
@@ -175,13 +148,8 @@ file limitation.
                 // If it is available, make the call to the
                 // base class's Dispose(Boolean) method
                 base.Dispose(disposing);
-
             }
-
-
-
         }
-
 
         private class FirstFileZipInputStream : ZipInputStream
         {
@@ -189,7 +157,6 @@ file limitation.
             public FirstFileZipInputStream(Stream readFromStream)
                 : base(readFromStream)
             {
-
                 base.IsStreamOwner = true;
                 ZipEntry entry = base.GetNextEntry();
 
@@ -197,12 +164,7 @@ file limitation.
                 {
                     throw new FileNotFoundException("The zip file is empty.");
                 }
-
-
-
-
             }
-
 
             protected override void Dispose(bool disposing)
             {
@@ -212,7 +174,6 @@ file limitation.
                     {
                         base.Close();
                         // dispose of managed resources
-
                     }
 
                     // There are no unmanaged resources to release, but
@@ -223,15 +184,8 @@ file limitation.
                 // If it is available, make the call to the
                 // base class's Dispose(Boolean) method
                 base.Dispose(disposing);
-
             }
-
-
-
         }
-
-
-
 
         private class FindFileZipInputStream : ZipInputStream
         {
@@ -239,7 +193,6 @@ file limitation.
             public FindFileZipInputStream(Stream readFromStream, string filename)
                 : base(readFromStream)
             {
-
                 base.IsStreamOwner = true;
 
                 ZipEntry entry = base.GetNextEntry();
@@ -252,11 +205,7 @@ file limitation.
                 {
                     throw new FileNotFoundException("The zip file not found.");
                 }
-
-
-
             }
-
 
             protected override void Dispose(bool disposing)
             {
@@ -266,7 +215,6 @@ file limitation.
                     {
                         base.Close();
                         // dispose of managed resources
-
                     }
 
                     // There are no unmanaged resources to release, but
@@ -277,16 +225,7 @@ file limitation.
                 // If it is available, make the call to the
                 // base class's Dispose(Boolean) method
                 base.Dispose(disposing);
-
             }
-
-
-
         }
     }
-
-
-
-
-
 }

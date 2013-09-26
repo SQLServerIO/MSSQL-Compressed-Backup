@@ -1,24 +1,28 @@
-/*
-	Copyright 2009 Clay Lenhart <clay@lenharts.net>
+/*************************************************************************************\
+File Name  :  Program.cs
+Project    :  MSSQL Compressed Backup
 
+Copyright 2009 Clay Lenhart <clay@lenharts.net>
 
-	This file is part of MSSQL Compressed Backup.
+This file is part of MSSQL Compressed Backup.
 
-    MSSQL Compressed Backup is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+MSSQL Compressed Backup is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+MSSQL Compressed Backup is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-*/
+You should have received a copy of the GNU General Public License
+along with MSSQL Compressed Backup.  If not, see <http://www.gnu.org/licenses/>.
 
-
+THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
+EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+\*************************************************************************************/
 
 using System;
 using System.Collections.Generic;
@@ -26,10 +30,15 @@ using System.Text;
 using System.IO;
 using System.Reflection;
 using System.Diagnostics;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Data;
+using System.Data.SqlClient;
 
+//Additional includes other than default dot net framework should go here.
 using MSBackupPipe.StdPlugins;
 using MSBackupPipe.Common;
 
+//main program entry point
 namespace MSBackupPipe.Cmd
 {
     class Program
@@ -40,15 +49,16 @@ namespace MSBackupPipe.Cmd
 #if DEBUG
             Debugger.Launch();
 #endif
-
             try
             {
-
-
+                //everything here is modular and is passed from pipeline to pipeline these are the
+                //three main pipelines, pipeline componnets are for compression, encryption and filters
+                //anything that would be considered a filter
+                //database components are the VDI commands and data stream from the backup or restore operation
+                //storage components are the last stage and consists of just disk targets at the moment.
                 Dictionary<string, Type> pipelineComponents = BackupPipeSystem.LoadTransformComponents();
                 Dictionary<string, Type> databaseComponents = BackupPipeSystem.LoadDatabaseComponents();
                 Dictionary<string, Type> storageComponents = BackupPipeSystem.LoadStorageComponents();
-
 
                 if (args.Length == 0)
                 {
@@ -91,27 +101,31 @@ namespace MSBackupPipe.Cmd
                                         Console.ReadKey();
                                         return -1;
                                 }
-
                             }
                             Console.ReadKey();
                             return 0;
-
+                        //start of backup command
                         case "backup":
                             {
                                 try
                                 {
-
                                     ConfigPair storageConfig;
                                     ConfigPair databaseConfig;
-                                    bool isBackup = true;
+                                    int commandType = 1;
 
-                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), isBackup, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
-
+                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
+                                    //async notifier for percent complete report
                                     CommandLineNotifier notifier = new CommandLineNotifier(true);
 
                                     DateTime startTime = DateTime.UtcNow;
-                                    BackupPipeSystem.Backup(databaseConfig, pipelineConfig, storageConfig, notifier);
-                                    Console.WriteLine(string.Format("Completed Successfully. {0}", DateTime.UtcNow - startTime));
+                                    //configure and start backup command
+                                    List<string> devicenames;
+                                    BackupPipeSystem.Backup(databaseConfig, pipelineConfig, storageConfig, notifier, out devicenames);
+                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
+                                    //this is so we can do a restore filelistonly and restore headeronly
+
+                                    WriteHeaderFilelist(databaseConfig,storageConfig, devicenames);
+
                                     Console.ReadKey();
                                     return 0;
                                 }
@@ -128,7 +142,7 @@ namespace MSBackupPipe.Cmd
                                     return -1;
                                 }
                             }
-
+                        //start of restore command
                         case "restore":
                             {
                                 try
@@ -136,15 +150,16 @@ namespace MSBackupPipe.Cmd
                                     ConfigPair storageConfig;
                                     ConfigPair databaseConfig;
 
-                                    bool isBackup = false;
+                                    int commandType = 2;
 
-                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), isBackup, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
-
+                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
+                                    //async notifier for percent complete report
                                     CommandLineNotifier notifier = new CommandLineNotifier(false);
 
                                     DateTime startTime = DateTime.UtcNow;
+                                    //configure and start restore command
                                     BackupPipeSystem.Restore(storageConfig, pipelineConfig, databaseConfig, notifier);
-                                    Console.WriteLine(string.Format("Completed Successfully. {0}", DateTime.UtcNow - startTime));
+                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
                                     Console.ReadKey();
                                     return 0;
                                 }
@@ -161,6 +176,74 @@ namespace MSBackupPipe.Cmd
                                     return -1;
                                 }
                             }
+                        case "headeronly":
+                            {
+                                try
+                                {
+                                    ConfigPair storageConfig;
+                                    ConfigPair databaseConfig;
+
+                                    int commandType = 4;
+
+                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
+                                    //async notifier for percent complete report
+                                    CommandLineNotifier notifier = new CommandLineNotifier(false);
+
+                                    DateTime startTime = DateTime.UtcNow;
+                                    //configure and start restore command
+                                    BackupPipeSystem.HeaderOnly(storageConfig, pipelineConfig, databaseConfig, notifier);
+                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
+                                    Console.ReadKey();
+                                    return 0;
+                                }
+                                catch (ParallelExecutionException ee)
+                                {
+                                    HandleExecutionExceptions(ee, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                                catch (Exception e)
+                                {
+                                    HandleException(e, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                            }
+
+                        case "verify":
+                            {
+                                try
+                                {
+                                    ConfigPair storageConfig;
+                                    ConfigPair databaseConfig;
+
+                                    int commandType = 3;
+
+                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
+                                    //async notifier for percent complete report
+                                    CommandLineNotifier notifier = new CommandLineNotifier(false);
+
+                                    DateTime startTime = DateTime.UtcNow;
+                                    //configure and start restore command
+                                    BackupPipeSystem.Verify(storageConfig, pipelineConfig, databaseConfig, notifier);
+                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
+                                    Console.ReadKey();
+                                    return 0;
+                                }
+                                catch (ParallelExecutionException ee)
+                                {
+                                    HandleExecutionExceptions(ee, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                                catch (Exception e)
+                                {
+                                    HandleException(e, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                            }
+
                         case "listplugins":
                             PrintPlugins(pipelineComponents, databaseComponents, storageComponents);
                             return 0;
@@ -194,8 +277,8 @@ namespace MSBackupPipe.Cmd
 
             catch (Exception e)
             {
-
                 Util.WriteError(e);
+//cut down on verbosity of error messages in release mode
 
                 Exception ie = e;
                 while (ie.InnerException != null)
@@ -211,14 +294,236 @@ namespace MSBackupPipe.Cmd
 
                 return -1;
             }
+        }
 
+        private static void WriteHeaderFilelist(ConfigPair databaseConfig, ConfigPair storageConfig, List<string> devices)
+        {
+            StringBuilder fileListHeaderOnlyQuery = new StringBuilder();
+            string queryCap = 
+                                @")
+			            )
+            );";
+            string headeronly = 
+                    @"SELECT [name]                      AS BackupName, 
+                   [description]               AS BackupDescription, 
+                   CASE 
+                     WHEN [type] = 'D' THEN 1 
+                     WHEN [type] = 'I' THEN 5 
+                     WHEN [type] = 'L' THEN 2 
+                     WHEN [type] = 'F' THEN 4 
+                     WHEN [type] = 'G' THEN 6 
+                     WHEN [type] = 'P' THEN 7 
+                     WHEN [type] = 'Q' THEN 8 
+                     ELSE NULL 
+                   END                         AS BackupType, 
+                   expiration_date             AS ExpirationDate, 
+                   CASE 
+                     WHEN backup_size > compressed_backup_size THEN 1 
+                     ELSE 0 
+                   END                         AS Compressed, 
+                   position                    AS Position, 
+                   2                           AS DeviceType, 
+                   [user_name]                 AS UserName, 
+                   [server_name]               AS ServerName, 
+                   [database_name]             AS DatabaseName, 
+                   database_version            AS DatabaseVersion, 
+                   database_creation_date      AS DatabaseCreationDate, 
+                   backup_size                 AS BackupSize, 
+                   first_lsn                   AS FirstLSN, 
+                   last_lsn                    AS LastLSN, 
+                   checkpoint_lsn              AS CheckpointLSN, 
+                   database_backup_lsn         AS DatabaseBackupLSN, 
+                   backup_start_date           AS BackupStartDate, 
+                   backup_finish_date          AS BackupFinishDate, 
+                   sort_order                  AS SortOrder, 
+                   code_page                   AS CodePage, 
+                   unicode_locale              AS UnicodeLocaleid, 
+                   unicode_compare_style       AS UnicodeComparisionStyle, 
+                   compatibility_level         AS CompatibilityLevel, 
+                   software_vendor_id          AS SoftwareVendorid, 
+                   software_major_version      AS SoftwareVersionMajor, 
+                   software_minor_version      AS SoftwareVersionMinor, 
+                   software_build_version      AS SoftwareVersionBuild, 
+                   machine_name                AS MachineName, 
+                   flags                       AS Flags, 
+                   drs.database_guid           AS BindingID, 
+                   drs.recovery_fork_guid      AS RecoveryForkID, 
+                   collation_name              AS Collation, 
+                   bs.family_guid              AS FamilyGUID, 
+                   has_bulk_logged_data        AS HasBulkLoggedData, 
+                   is_snapshot                 AS IsSnapshot, 
+                   is_readonly                 AS IsReadonly, 
+                   is_single_user              AS IsSingleUser, 
+                   has_backup_checksums        AS HasBackupChecksums, 
+                   is_damaged                  AS IsDamaged, 
+                   begins_log_chain            AS BeginsLogChain, 
+                   has_incomplete_metadata     AS HasIncompleteMetaData, 
+                   is_force_offline            AS IsForceOffline, 
+                   is_copy_only                AS IsCopyOnly, 
+                   bs.first_recovery_fork_guid AS FirstRecoveryForkID, 
+                   bs.fork_point_lsn           AS ForPointLSN, 
+                   recovery_model              AS RecoveryModel, 
+                   differential_base_lsn       AS DifferentialBaseLSN, 
+                   differential_base_guid      AS DifferentialBaseGUID, 
+                   CASE 
+                     WHEN [type] = 'D' THEN 'DATABASE' 
+                     WHEN [type] = 'I' THEN 'DATABASE DIFFERENTIAL' 
+                     WHEN [type] = 'L' THEN 'TRANSACTION LOG' 
+                     WHEN [type] = 'F' THEN 'FILE OR FILEGROUP' 
+                     WHEN [type] = 'G' THEN 'FILE DIFFERENTIAL PARTIAL' 
+                     WHEN [type] = 'P' THEN 'PARTIAL DIFFERENTIAL' 
+                     WHEN [type] = 'Q' THEN 'PARTIAL DIFFERENTIAL' 
+                     ELSE NULL 
+                   END                         AS BackupSetDescription, 
+                   backup_set_uuid             AS BackupSetGUID, 
+                   compressed_backup_size      AS CompressedBackupSize, 
+                   0                           AS Containment 
+            FROM   msdb.dbo.backupset bs 
+                   LEFT OUTER JOIN msdb.sys.database_recovery_status drs 
+                                ON bs.family_guid = drs.family_guid
+            where bs.backup_set_id
+            in(
+	            select 
+			            backup_set_id 
+		            from 
+			            msdb.dbo.backupset 
+		            where 
+			            media_set_id in 
+			            (
+			            select 
+				            distinct media_set_id 
+			            from 
+				            msdb.dbo.backupmediafamily 
+			            where 
+				            physical_device_name in(";
+
+
+            string fileListOnly = 
+                        @"SELECT logical_name           AS LogicalName,
+                               physical_name          AS PhysicalName, 
+                               file_type              AS [Type], 
+                               [filegroup_name]       AS FileGroupName, 
+                               [file_size]            AS Size, 
+                               35184372080640         AS MaxSize, 
+                               file_number            AS FileID, 
+                               create_lsn             AS CreateLSN, 
+                               drop_lsn               AS DropLSN, 
+                               file_guid              AS UniqueID, 
+                               read_only_lsn          AS ReadOnlyLSN, 
+                               read_write_lsn         AS ReadWriteLSN, 
+                               backup_size            AS BackupSizeInBytes, 
+                               source_file_block_size AS SourceBlockSize, 
+                               filegroup_guid         AS FileGroupID, 
+                               NULL                   AS logLogGroupGUID, 
+                               differential_base_lsn  AS DifferentialBaseLSN, 
+                               differential_base_guid AS DifferentialBaseGUID, 
+                               is_readonly            AS IsReadOnly, 
+                               is_present             AS IsPresent, 
+                               NULL                   AS TDEThumbprint 
+                        FROM   msdb.dbo.backupfile
+                        where 
+	                        backup_set_id in 
+	                        (
+	                        select 
+		                        backup_set_id 
+	                        from 
+		                        msdb.dbo.backupset 
+	                        where 
+		                        media_set_id in 
+		                        (
+		                        select 
+			                        distinct media_set_id 
+		                        from 
+			                        msdb.dbo.backupmediafamily 
+		                        where 
+				                        physical_device_name in(";
+
+            String metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
+
+            string instanceName = null;
+
+            if (databaseConfig.Parameters.ContainsKey("instancename"))
+            {
+                instanceName = databaseConfig.Parameters["instancename"][0];
+            }
+
+            if (instanceName != null)
+            {
+                instanceName = instanceName.Trim();
+            }
+
+            string clusterNetworkName = null;
+
+            if (databaseConfig.Parameters.ContainsKey("ClusterNetworkName"))
+            {
+                clusterNetworkName = databaseConfig.Parameters["ClusterNetworkName"][0];
+            }
+            StringBuilder deviceList = new StringBuilder();
+
+            foreach (var d in devices)
+            {
+                deviceList.Append("'");
+                deviceList.Append(d);
+                deviceList.Append("',");
+            }
+            deviceList.Remove(deviceList.Length - 1, 1);
+
+            fileListHeaderOnlyQuery.Append(headeronly);
+            fileListHeaderOnlyQuery.Append(deviceList);
+            fileListHeaderOnlyQuery.Append(queryCap);
+            fileListHeaderOnlyQuery.Append(fileListOnly);
+            fileListHeaderOnlyQuery.Append(deviceList);
+            fileListHeaderOnlyQuery.Append(queryCap);
+
+            Console.WriteLine(fileListHeaderOnlyQuery);
+
+            string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
+            string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
+            string connectionString = "";
+            if (databaseConfig.Parameters.ContainsKey("user"))
+            {
+                if (databaseConfig.Parameters.ContainsKey("password"))
+                {
+                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), databaseConfig.Parameters["password"][0].ToString());
+                }
+                else
+                {
+                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), null);
+                }
+            }
+            else
+            {
+                connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
+            }
+
+            Console.WriteLine(metaDataPath);
+
+            DataSet headerFileList = new DataSet();
+
+            SqlCommand mCmd = new SqlCommand();
+
+            using (SqlConnection mCnn = new SqlConnection(connectionString))
+            {
+                SqlDataAdapter adapter = new SqlDataAdapter();
+                adapter.SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn);
+                mCnn.Open();
+                adapter.Fill(headerFileList);
+            }  
+
+
+            FileStream fs = new FileStream(metaDataPath, FileMode.Create);
+            BinaryFormatter bFormat = new BinaryFormatter();
+            bFormat.Serialize(fs, headerFileList);
+            fs.Close();
+
+            //fs = new FileStream(metaDataPath, FileMode.Open);
+            //DataSet data = (DataSet)bFormat.Deserialize(fs);
 
         }
 
 
         private static void HandleExecutionExceptions(ParallelExecutionException ee, bool isBackup)
         {
-
             int i = 1;
             foreach (Exception e in ee.Exceptions)
             {
@@ -232,10 +537,8 @@ namespace MSBackupPipe.Cmd
             Console.WriteLine();
             Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
 
-
             PrintUsage();
         }
-
 
         private static void HandleException(Exception e, bool isBackup)
         {
@@ -267,20 +570,18 @@ namespace MSBackupPipe.Cmd
             return result;
         }
 
-
-
-        private static List<ConfigPair> ParseBackupOrRestoreArgs(List<string> args, bool isBackup, Dictionary<string, Type> pipelineComponents, Dictionary<string, Type> databaseComponents, Dictionary<string, Type> storageComponents, out ConfigPair databaseConfig, out ConfigPair storageConfig)
+        private static List<ConfigPair> ParseBackupOrRestoreArgs(List<string> args, int commandType, Dictionary<string, Type> pipelineComponents, Dictionary<string, Type> databaseComponents, Dictionary<string, Type> storageComponents, out ConfigPair databaseConfig, out ConfigPair storageConfig)
         {
             if (args.Count < 2)
             {
                 throw new ArgumentException("Please provide both the database and storage plugins after the backup subcommand.");
             }
 
-
             string databaseArg;
             string storageArg;
 
-            if (isBackup)
+
+            if (commandType == 1)
             {
                 databaseArg = args[0];
                 storageArg = args[args.Count - 1];
@@ -304,8 +605,6 @@ namespace MSBackupPipe.Cmd
 
             databaseConfig = ConfigUtil.ParseComponentConfig(databaseComponents, databaseArg);
 
-
-
             if (storageArg[0] == '[' && storageArg[databaseArg.Length - 1] == ']')
             {
                 throw new ArgumentException("The last sub argument must be a storage plugin.");
@@ -317,10 +616,7 @@ namespace MSBackupPipe.Cmd
                 storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
             }
 
-
             storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
-
-
 
             List<string> pipelineArgs = new List<string>();
             for (int i = 1; i < args.Count - 1; i++)
@@ -328,20 +624,13 @@ namespace MSBackupPipe.Cmd
                 pipelineArgs.Add(args[i]);
             }
 
-
             List<ConfigPair> pipeline = BuildPipelineFromString(pipelineArgs, pipelineComponents);
-
 
             return pipeline;
         }
 
-
-
-
-
         private static List<ConfigPair> BuildPipelineFromString(List<string> pipelineArgs, Dictionary<string, Type> pipelineComponents)
         {
-
             for (int i = 0; i < pipelineArgs.Count; i++)
             {
                 pipelineArgs[i] = pipelineArgs[i].Trim();
@@ -352,15 +641,11 @@ namespace MSBackupPipe.Cmd
             foreach (string componentString in pipelineArgs)
             {
                 ConfigPair config = ConfigUtil.ParseComponentConfig(pipelineComponents, componentString);
-
                 results.Add(config);
             }
 
-
             return results;
         }
-
-
 
 
         private static void PrintUsage()
@@ -437,6 +722,5 @@ namespace MSBackupPipe.Cmd
                 Console.WriteLine(db.CommandLineHelp);
             }
         }
-
     }
 }
