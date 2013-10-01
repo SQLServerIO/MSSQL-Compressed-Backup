@@ -26,7 +26,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Security.Cryptography;
 
@@ -37,26 +36,19 @@ namespace MSBackupPipe.StdPlugins.Transform
     using System.Text;
     using System.IO;
 
-    using FlowGroup.Crypto;
-
     namespace MSBackupPipe.StdPlugins
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "AES")]
         public class AESTransform : IBackupTransformer
         {
-            byte[] TEST_KEY = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
-            byte[] TEST_IV = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
-
-            //        //AES.Padding = paddingMode;
-
             byte[] AES_KEY = new byte[] { };
+            byte[] IV = new byte[] { };
             private static Dictionary<string, ParameterInfo> mBackupParamSchema;
             private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
             static AESTransform()
             {
                 mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
                 mBackupParamSchema.Add("key", new ParameterInfo(false, true));
-
 
                 mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
                 mRestoreParamSchema.Add("key", new ParameterInfo(false, true));
@@ -83,12 +75,19 @@ namespace MSBackupPipe.StdPlugins.Transform
 
                 Console.WriteLine("Encrypter: AES");
 
-                AES_KEY = Encoding.ASCII.GetBytes(sKey[0]);
+                PasswordDeriveBytes pdb = new PasswordDeriveBytes(sKey[0], new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
 
-                Aes AES = Aes.Create();
+                AES_KEY = pdb.GetBytes(32);
+                IV = pdb.GetBytes(16);
 
-                AES.Key = TEST_KEY;
-                AES.IV = TEST_IV;
+                Rijndael AES = Rijndael.Create();
+                AES.BlockSize = 128;
+                AES.KeySize = 256;
+                AES.FeedbackSize = 128;
+                AES.Mode = CipherMode.CFB;
+                AES.Padding = PaddingMode.PKCS7;
+                AES.IV = IV;
+                AES.Key = AES_KEY;
 
                 return new CryptoStream(writeToStream, AES.CreateEncryptor(), CryptoStreamMode.Write);
             }
@@ -117,22 +116,29 @@ namespace MSBackupPipe.StdPlugins.Transform
                     throw new ArgumentException(string.Format("AES: key is required to decrypt data."));
                 }
 
-                AES_KEY = Encoding.ASCII.GetBytes(sKey[0]);
+                PasswordDeriveBytes pdb = new PasswordDeriveBytes(sKey[0], new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
 
-                Aes AES = Aes.Create();
+                AES_KEY = pdb.GetBytes(32);
+                IV = pdb.GetBytes(16);
 
-                AES.Key = TEST_KEY;
-                AES.IV = TEST_IV;
+                Rijndael AES = Rijndael.Create();
 
-                AES_KEY = Encoding.ASCII.GetBytes(sKey[0]);
-                return new CryptoStream(readFromStream, AES.CreateEncryptor(), CryptoStreamMode.Read);
+                AES.BlockSize = 128;
+                AES.KeySize = 256;
+                AES.FeedbackSize = 128;
+                AES.Mode = CipherMode.CFB;
+                AES.Padding = PaddingMode.PKCS7;//.None;
+                AES.IV = IV;
+                AES.Key = AES_KEY;
+
+                return new CryptoStream(readFromStream, AES.CreateDecryptor(), CryptoStreamMode.Read);
             }
 
             public string CommandLineHelp
             {
                 get
                 {
-                    return @"AES Usage: \nAES will encrypt (or decrypt) the data.\nYou must pass in the ascii key to use for encryption and decryption \nExample: \nAES (key = adaabvadre)";
+                    return "AES Usage: \nAES will encrypt (or decrypt) the data.\nYou must pass in the ascii key to use for encryption and decryption \nExample: \nAES (key = adaabvadre)";
                 }
             }
 

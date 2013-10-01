@@ -36,8 +36,6 @@ namespace MSBackupPipe.StdPlugins
         void ConfigureBackupCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd);
         void ConfigureRestoreCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd);
         void ConfigureVerifyCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd);
-        void ConfigureFileListCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd);
-        void ConfigureHeaderOnlyCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd);
         string GetInstanceName(Dictionary<string, List<string>> config);
         string GetClusterNetworkName(Dictionary<string, List<string>> config);
     }

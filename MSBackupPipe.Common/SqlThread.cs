@@ -99,14 +99,6 @@ namespace MSBackupPipe.Common
                     dbComponent.ConfigureVerifyCommand(dbConfig, deviceNames, mCmd);
                     estimatedTotalBytes = 0;
                     break;
-                case 4:
-                    dbComponent.ConfigureHeaderOnlyCommand(dbConfig, deviceNames, mCmd);
-                    estimatedTotalBytes = 0;
-                    break;
-                case 5:
-                    dbComponent.ConfigureFileListCommand(dbConfig, deviceNames, mCmd);
-                    estimatedTotalBytes = 0;
-                    break;
 
                 default:
                     Console.WriteLine("Default case");

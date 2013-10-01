@@ -47,7 +47,7 @@ namespace MSBackupPipe.Cmd
         {
 
 #if DEBUG
-            Debugger.Launch();
+            //Debugger.Launch();
 #endif
             try
             {
@@ -84,6 +84,15 @@ namespace MSBackupPipe.Cmd
                                         break;
                                     case "restore":
                                         PrintRestoreUsage();
+                                        break;
+                                    case "restoreverifyonly":
+                                        PrintVerifyOnlyUsage();
+                                        break;
+                                    case "restoreheaderonly":
+                                        PrintRestoreHeaderOnlyUsage();
+                                        break;
+                                    case "restorefilelistonly":
+                                        PrintRestoreFilelistOnlyUsage();
                                         break;
                                     case "listplugins":
                                         Console.WriteLine("Lists the plugins available.  Go on, try it.");
@@ -176,31 +185,176 @@ namespace MSBackupPipe.Cmd
                                     return -1;
                                 }
                             }
-                        case "headeronly":
+                        case "restorefilelistonly":
                             {
+                                DateTime startTime = DateTime.UtcNow;
+                                BinaryFormatter bFormat = new BinaryFormatter();
+                                var hargs = CopySubArgs(args);
+                                var storageArg = args[1];
+                                ConfigPair storageConfig;
+                                FileStream fs;
                                 try
                                 {
-                                    ConfigPair storageConfig;
-                                    ConfigPair databaseConfig;
 
-                                    int commandType = 4;
+                                    if (storageArg.StartsWith("file://"))
+                                    {
+                                        Uri uri = new Uri(storageArg);
+                                        storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
+                                    }
+                                }
+                                catch (Exception e)
+                                {
+                                    HandleException(e, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                                try
+                                {
+                                    storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
+                                }
+                                catch (Exception e)
+                                {
+                                    HandleException(e, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                                String metaDataPath = storageConfig.Parameters["path"][0].ToString();
 
-                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
-                                    //async notifier for percent complete report
-                                    CommandLineNotifier notifier = new CommandLineNotifier(false);
+                                try
+                                {
+                                    fs = new FileStream(metaDataPath, FileMode.Open);
+                                }
+                                catch
+                                {
+                                    try
+                                    {
+                                        metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
+                                        fs = new FileStream(metaDataPath, FileMode.Open);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        HandleException(e, false);
+                                        Console.ReadKey();
+                                        return -1;
+                                    }
+                                }
 
-                                    DateTime startTime = DateTime.UtcNow;
-                                    //configure and start restore command
-                                    BackupPipeSystem.HeaderOnly(storageConfig, pipelineConfig, databaseConfig, notifier);
+                                try
+                                {
+                                    DataSet HeaderOnlyData = (DataSet)bFormat.Deserialize(fs);
+                                    DataTable table = HeaderOnlyData.Tables[1]; // Get the data table.
+                                    StringBuilder sb = new StringBuilder();
+                                    foreach (DataColumn column in table.Columns)
+                                    {
+                                        sb.Append(column);
+                                        sb.Append(",");
+                                    }
+                                    sb.Length -= 1;
+                                    sb.AppendLine();
+                                    foreach (DataRow row in table.Rows) // Loop over the rows.
+                                    {
+                                        foreach (var value in row.ItemArray)
+                                        {
+                                            sb.Append(value);
+                                            sb.Append(",");
+                                        }
+                                        sb.Length -= 1;
+                                        sb.AppendLine();
+                                    }
+
+                                    Console.WriteLine(sb.ToString());
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
                                     Console.ReadKey();
                                     return 0;
                                 }
-                                catch (ParallelExecutionException ee)
+                                catch (Exception e)
                                 {
-                                    HandleExecutionExceptions(ee, false);
+                                    HandleException(e, false);
                                     Console.ReadKey();
                                     return -1;
+                                }
+                            }
+                        case "restoreheaderonly":
+                            {
+                                DateTime startTime = DateTime.UtcNow;
+                                BinaryFormatter bFormat = new BinaryFormatter();
+                                var hargs = CopySubArgs(args);
+                                var storageArg = args[1];
+                                ConfigPair storageConfig;
+                                FileStream fs;
+                                try
+                                {
+
+                                    if (storageArg.StartsWith("file://"))
+                                    {
+                                        Uri uri = new Uri(storageArg);
+                                        storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
+                                    }
+                                }
+                                catch (Exception e)
+                                {
+                                    HandleException(e, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                                try
+                                {
+                                    storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
+                                }
+                                catch (Exception e)
+                                {
+                                    HandleException(e, false);
+                                    Console.ReadKey();
+                                    return -1;
+                                }
+                                String metaDataPath = storageConfig.Parameters["path"][0].ToString();
+
+                                try
+                                {
+                                    fs = new FileStream(metaDataPath, FileMode.Open);
+                                }
+                                catch
+                                {
+                                    try
+                                    {
+                                        metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
+                                        fs = new FileStream(metaDataPath, FileMode.Open);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        HandleException(e, false);
+                                        Console.ReadKey();
+                                        return -1;
+                                    }
+                                }
+
+                                try
+                                {
+                                    DataSet HeaderOnlyData = (DataSet)bFormat.Deserialize(fs);
+                                    DataTable table = HeaderOnlyData.Tables[0]; // Get the data table.
+                                    StringBuilder sb = new StringBuilder();
+                                    foreach (DataColumn column in table.Columns)
+                                    {
+                                        sb.Append(column);
+                                        sb.Append(",");
+                                    }
+                                    sb.Length -= 1;
+                                    sb.AppendLine();
+                                    foreach (DataRow row in table.Rows) // Loop over the rows.
+                                    {
+                                        foreach (var value in row.ItemArray)
+                                        {
+                                            sb.Append(value);
+                                            sb.Append(",");
+                                        }
+                                        sb.Length -= 1;
+                                        sb.AppendLine();
+                                    }
+
+                                    Console.WriteLine(sb.ToString());
+                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
+                                    Console.ReadKey();
+                                    return 0;
                                 }
                                 catch (Exception e)
                                 {
@@ -210,7 +364,7 @@ namespace MSBackupPipe.Cmd
                                 }
                             }
 
-                        case "verify":
+                        case "restoreverifyonly":
                             {
                                 try
                                 {
@@ -475,7 +629,7 @@ namespace MSBackupPipe.Cmd
             fileListHeaderOnlyQuery.Append(deviceList);
             fileListHeaderOnlyQuery.Append(queryCap);
 
-            Console.WriteLine(fileListHeaderOnlyQuery);
+//            Console.WriteLine(fileListHeaderOnlyQuery);
 
             string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
             string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
@@ -496,7 +650,7 @@ namespace MSBackupPipe.Cmd
                 connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
             }
 
-            Console.WriteLine(metaDataPath);
+//            Console.WriteLine(metaDataPath);
 
             DataSet headerFileList = new DataSet();
 
@@ -510,15 +664,10 @@ namespace MSBackupPipe.Cmd
                 adapter.Fill(headerFileList);
             }  
 
-
             FileStream fs = new FileStream(metaDataPath, FileMode.Create);
             BinaryFormatter bFormat = new BinaryFormatter();
             bFormat.Serialize(fs, headerFileList);
             fs.Close();
-
-            //fs = new FileStream(metaDataPath, FileMode.Open);
-            //DataSet data = (DataSet)bFormat.Deserialize(fs);
-
         }
 
 
@@ -654,6 +803,9 @@ namespace MSBackupPipe.Cmd
             Console.WriteLine("\tmsbp.exe help");
             Console.WriteLine("\tmsbp.exe backup");
             Console.WriteLine("\tmsbp.exe restore");
+            Console.WriteLine("\tmsbp.exe restoreverifyonly");
+            Console.WriteLine("\tmsbp.exe restoreheaderonly");
+            Console.WriteLine("\tmsbp.exe restorefilelistonly");
             Console.WriteLine("\tmsbp.exe listplugins");
             Console.WriteLine("\tmsbp.exe helpplugin");
             Console.WriteLine("\tmsbp.exe version");
@@ -683,6 +835,28 @@ namespace MSBackupPipe.Cmd
             Console.WriteLine("For more information on the different pipline options, type msbp.exe listplugins");
         }
 
+        private static void PrintVerifyOnlyUsage()
+        {
+            Console.WriteLine("To verify a backup set, the first parameter must be the file, and the last parameter must be the database in brackets.  The middle parameters can modify the data, for example uncompressing it.");
+            Console.WriteLine("To verify a standard *.bak file:");
+            Console.WriteLine("\tmsbp.exe restoreverifyonly file:///c:\\model.bak [model]");
+            Console.WriteLine("To decompress  the backup file using gzip:");
+            Console.WriteLine("\tmsbp.exe restoreverifyonly file:///c:\\model.bak.gz gzip [model]");
+            Console.WriteLine("");
+            Console.WriteLine("For more information on the different pipline options, type msbp.exe listplugins");
+        }
+
+        private static void PrintRestoreHeaderOnlyUsage()
+        {
+            Console.WriteLine("To restore header only, the first parameter must be the metadata (hfl) file");
+            Console.WriteLine("\tmsbp.exe restoreheaderonly file:///c:\\model.bak.gz.hfl");
+        }
+
+        private static void PrintRestoreFilelistOnlyUsage()
+        {
+            Console.WriteLine("To restore filelist only, the first parameter must be the metadata (hfl) file");
+            Console.WriteLine("\tmsbp.exe restorefilelist file:///c:\\model.bak.gz.hfl");
+        }
 
         private static void PrintPlugins(Dictionary<string, Type> pipelineComponents, Dictionary<string, Type> databaseComponents, Dictionary<string, Type> storageComponents)
         {

@@ -39,8 +39,6 @@ namespace MSBackupPipe.StdPlugins.Database
         private static Dictionary<string, ParameterInfo> mBackupParamSchema;
         private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
         private static Dictionary<string, ParameterInfo> mVerifyParamSchema;
-        private static Dictionary<string, ParameterInfo> mFileListParamSchema;
-        private static Dictionary<string, ParameterInfo> mHeaderOnlyParamSchema;
 
         static DatabaseSource()
         {
@@ -108,28 +106,6 @@ namespace MSBackupPipe.StdPlugins.Database
             mVerifyParamSchema.Add("STOP_ON_ERROR", new ParameterInfo(false, false));
             mVerifyParamSchema.Add("CONTINUE_AFTER_ERROR", new ParameterInfo(false, false));
             mVerifyParamSchema.Add("LOADHISTORY", new ParameterInfo(false, false));
-
-            mHeaderOnlyParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mHeaderOnlyParamSchema.Add("database", new ParameterInfo(false, true));
-            mHeaderOnlyParamSchema.Add("instancename", new ParameterInfo(false, false));
-            mHeaderOnlyParamSchema.Add("ClusterNetworkName", new ParameterInfo(false, false));
-            mHeaderOnlyParamSchema.Add("restoretype", new ParameterInfo(false, false));
-            mHeaderOnlyParamSchema.Add("user", new ParameterInfo(false, false));
-            mHeaderOnlyParamSchema.Add("password", new ParameterInfo(false, false));
-            mHeaderOnlyParamSchema.Add("CHECKSUM", new ParameterInfo(false, false));
-            mHeaderOnlyParamSchema.Add("NO_CHECKSUM", new ParameterInfo(false, false));
-            mHeaderOnlyParamSchema.Add("STOP_ON_ERROR", new ParameterInfo(false, false));
-
-            mFileListParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mFileListParamSchema.Add("database", new ParameterInfo(false, true));
-            mFileListParamSchema.Add("instancename", new ParameterInfo(false, false));
-            mFileListParamSchema.Add("ClusterNetworkName", new ParameterInfo(false, false));
-            mFileListParamSchema.Add("restoretype", new ParameterInfo(false, false));
-            mFileListParamSchema.Add("user", new ParameterInfo(false, false));
-            mFileListParamSchema.Add("password", new ParameterInfo(false, false));
-            mFileListParamSchema.Add("CHECKSUM", new ParameterInfo(false, false));
-            mFileListParamSchema.Add("NO_CHECKSUM", new ParameterInfo(false, false));
-            mFileListParamSchema.Add("STOP_ON_ERROR", new ParameterInfo(false, false));
         }
 
         #region IBackupDatabase Members
@@ -339,203 +315,6 @@ namespace MSBackupPipe.StdPlugins.Database
             });
 
             cmd.CommandText = string.Format("BACKUP {0} @databasename {1}TO {2}{3};", databaseOrLog, filegroupClause, string.Join(",", devSql.ToArray()), withClause);
-        }
-
-        public string GetInstanceName(Dictionary<string, List<string>> config)
-        {
-            string instanceName = null;
-
-            if (config.ContainsKey("instancename"))
-            {
-                instanceName = config["instancename"][0];
-            }
-
-            if (instanceName != null)
-            {
-                instanceName = instanceName.Trim();
-            }
-
-            return instanceName;
-        }
-
-        public string GetClusterNetworkName(Dictionary<string, List<string>> config)
-        {
-            string clusterNetworkName = null;
-
-            if (config.ContainsKey("ClusterNetworkName"))
-            {
-                clusterNetworkName = config["ClusterNetworkName"][0];
-            }
-
-            return clusterNetworkName;
-        }
-
-        public void ConfigureVerifyCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
-        {
-            ParameterInfo.ValidateParams(mVerifyParamSchema, config);
-
-            SqlParameter param;
-            param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255);
-            param.Value = config["database"][0];
-            cmd.Parameters.Add(param);
-
-            List<string> withOptions = new List<string>();
-            List<string> filegroupOptions = new List<string>();
-
-            if (config.ContainsKey("CHECKSUM"))
-            {
-                withOptions.Add("CHECKSUM");
-            }
-
-            if (config.ContainsKey("NO_CHECKSUM"))
-            {
-                withOptions.Add("NO_CHECKSUM");
-            }
-
-            if (config.ContainsKey("STOP_ON_ERROR"))
-            {
-                withOptions.Add("STOP_ON_ERROR");
-            }
-
-            if (config.ContainsKey("CONTINUE_AFTER_ERROR"))
-            {
-                withOptions.Add("CONTINUE_AFTER_ERROR");
-            }
-
-            if (config.ContainsKey("LOADHISTORY"))
-            {
-                withOptions.Add("LOADHISTORY");
-            }
-            string withClause = null;
-            if (withOptions.Count > 0)
-            {
-                withClause = " WITH ";
-                for (int i = 0; i < withOptions.Count; i++)
-                {
-                    if (i > 0)
-                    {
-                        withClause += ",";
-                    }
-                    withClause += withOptions[i];
-                }
-            }
-
-            string databaseOrLog = "VERIFYONLY";// restoreType == RestoreType.Log ? "LOG" : "DATABASE";
-            cmd.CommandType = CommandType.Text;
-            List<string> tempDevs = new List<string>(deviceNames);
-            List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
-            {
-                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
-            });
-            cmd.CommandText = string.Format("RESTORE {0} FROM {1}{2};", databaseOrLog, string.Join(",", devSql.ToArray()), withClause);
-        }
-
-        public void ConfigureHeaderOnlyCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
-        {
-            ParameterInfo.ValidateParams(mHeaderOnlyParamSchema, config);
-
-            List<string> withOptions = new List<string>();
-            List<string> filegroupOptions = new List<string>();
-
-            if (config.ContainsKey("CHECKSUM"))
-            {
-                withOptions.Add("CHECKSUM");
-            }
-
-            if (config.ContainsKey("NO_CHECKSUM"))
-            {
-                withOptions.Add("NO_CHECKSUM");
-            }
-
-            if (config.ContainsKey("STOP_ON_ERROR"))
-            {
-                withOptions.Add("STOP_ON_ERROR");
-            }
-
-            if (config.ContainsKey("CONTINUE_AFTER_ERROR"))
-            {
-                withOptions.Add("CONTINUE_AFTER_ERROR");
-            }
-
-            string withClause = null;
-            if (withOptions.Count > 0)
-            {
-                withClause = " WITH ";
-                for (int i = 0; i < withOptions.Count; i++)
-                {
-                    if (i > 0)
-                    {
-                        withClause += ",";
-                    }
-                    withClause += withOptions[i];
-                }
-            }
-
-            string databaseOrLog = "HEADERONLY";// restoreType == RestoreType.Log ? "LOG" : "DATABASE";
-            cmd.CommandType = CommandType.Text;
-            List<string> tempDevs = new List<string>(deviceNames);
-            List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
-            {
-                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
-            });
-            Console.WriteLine(string.Format("RESTORE {0} @databasename FROM {1}{2};", databaseOrLog, string.Join(",", devSql.ToArray()), withClause));
-            cmd.CommandText = string.Format("RESTORE {0} FROM {1}{2};", databaseOrLog, string.Join(",", devSql.ToArray()), withClause);
-        }
-
-        public void ConfigureFileListCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
-        {
-            ParameterInfo.ValidateParams(mFileListParamSchema, config);
-
-            SqlParameter param;
-            param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255);
-            param.Value = config["database"][0];
-            cmd.Parameters.Add(param);
-
-            List<string> withOptions = new List<string>();
-            List<string> filegroupOptions = new List<string>();
-
-            if (config.ContainsKey("CHECKSUM"))
-            {
-                withOptions.Add("CHECKSUM");
-            }
-
-            if (config.ContainsKey("NO_CHECKSUM"))
-            {
-                withOptions.Add("NO_CHECKSUM");
-            }
-
-            if (config.ContainsKey("STOP_ON_ERROR"))
-            {
-                withOptions.Add("STOP_ON_ERROR");
-            }
-
-            if (config.ContainsKey("CONTINUE_AFTER_ERROR"))
-            {
-                withOptions.Add("CONTINUE_AFTER_ERROR");
-            }
-
-            string withClause = null;
-            if (withOptions.Count > 0)
-            {
-                withClause = " WITH ";
-                for (int i = 0; i < withOptions.Count; i++)
-                {
-                    if (i > 0)
-                    {
-                        withClause += ",";
-                    }
-                    withClause += withOptions[i];
-                }
-            }
-
-            string databaseOrLog = "FILELISTONLY";// restoreType == RestoreType.Log ? "LOG" : "DATABASE";
-            cmd.CommandType = CommandType.Text;
-            List<string> tempDevs = new List<string>(deviceNames);
-            List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
-            {
-                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
-            });
-            cmd.CommandText = string.Format("RESTORE {0} @databasename {1}FROM {2}{3};", databaseOrLog, string.Join(",", devSql.ToArray()), withClause);
         }
 
         public void ConfigureRestoreCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
@@ -833,11 +612,100 @@ namespace MSBackupPipe.StdPlugins.Database
             cmd.CommandType = CommandType.Text;
             List<string> tempDevs = new List<string>(deviceNames);
             List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
-                {
-                    return string.Format("VIRTUAL_DEVICE='{0}'", devName);
-                });
+            {
+                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
+            });
 
             cmd.CommandText = string.Format("RESTORE {0} @databasename {1}FROM {2}{3};", databaseOrLog, filegroupClause, string.Join(",", devSql.ToArray()), withClause);
+        }
+
+        public void ConfigureVerifyCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
+        {
+            ParameterInfo.ValidateParams(mVerifyParamSchema, config);
+
+            SqlParameter param;
+            param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255);
+            param.Value = config["database"][0];
+            cmd.Parameters.Add(param);
+
+            List<string> withOptions = new List<string>();
+            List<string> filegroupOptions = new List<string>();
+
+            if (config.ContainsKey("CHECKSUM"))
+            {
+                withOptions.Add("CHECKSUM");
+            }
+
+            if (config.ContainsKey("NO_CHECKSUM"))
+            {
+                withOptions.Add("NO_CHECKSUM");
+            }
+
+            if (config.ContainsKey("STOP_ON_ERROR"))
+            {
+                withOptions.Add("STOP_ON_ERROR");
+            }
+
+            if (config.ContainsKey("CONTINUE_AFTER_ERROR"))
+            {
+                withOptions.Add("CONTINUE_AFTER_ERROR");
+            }
+
+            if (config.ContainsKey("LOADHISTORY"))
+            {
+                withOptions.Add("LOADHISTORY");
+            }
+            string withClause = null;
+            if (withOptions.Count > 0)
+            {
+                withClause = " WITH ";
+                for (int i = 0; i < withOptions.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        withClause += ",";
+                    }
+                    withClause += withOptions[i];
+                }
+            }
+
+            string databaseOrLog = "VERIFYONLY";// restoreType == RestoreType.Log ? "LOG" : "DATABASE";
+            cmd.CommandType = CommandType.Text;
+            List<string> tempDevs = new List<string>(deviceNames);
+            List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
+            {
+                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
+            });
+            cmd.CommandText = string.Format("RESTORE {0} FROM {1}{2};", databaseOrLog, string.Join(",", devSql.ToArray()), withClause);
+        }
+
+        public string GetInstanceName(Dictionary<string, List<string>> config)
+        {
+            string instanceName = null;
+
+            if (config.ContainsKey("instancename"))
+            {
+                instanceName = config["instancename"][0];
+            }
+
+            if (instanceName != null)
+            {
+                instanceName = instanceName.Trim();
+            }
+
+            return instanceName;
+        }
+
+        public string GetClusterNetworkName(Dictionary<string, List<string>> config)
+        {
+            string clusterNetworkName = null;
+
+            if (config.ContainsKey("ClusterNetworkName"))
+            {
+                clusterNetworkName = config["ClusterNetworkName"][0];
+            }
+
+            return clusterNetworkName;
         }
 
         public string CommandLineHelp
