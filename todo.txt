@@ -42,10 +42,27 @@ sftp plugin
 done:
 striped backups
 Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
-encryption plugin
+Rijendel encryption plugin
 LZ4 plugin
 zip plugin
 
 regressions:
 make it SQL 2000 compatible.
 Current query to pull header and file detail only works with 2005 and above
+
+TODO: currently shows time remaining need to add a switch to show ether time remaining or estimated datetime to finish. C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\CommandLineNotifier.cs 82
+TODO: enable switch to turn stats reporting on or off   C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  63
+TODO: add validator for maxtransfersize other than is number    C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  224
+TODO: add validator for blocksize other than is number  C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  240
+TODO: add validator for STATS other than is number  C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  257
+TODO: add pause on complete switch to command line  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 52
+TODO: restore on top of an existing database? no error message  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 53
+TODO: package version number does not match assembly's version number.  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 54
+TODO: cntl-c kills the app, but we can handle the event: http://www.codeneverwritten.com/2006/10/ctrl-c-and-net-console-application.html    C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 55
+TODO: Do escaped cmd line args work?    C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 56
+TODO: error on overwrite?   C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 57
+TODO: Verify SQL Server version compatibility preferred 2000 throught 2014+ C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 58
+TODO: better device timeout, longer execution timeout (db might be locked)  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 59
+TODO: check file extensions C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 60
+TODO: cut down on verbosity of error messages in release mode   C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 444
+TODO: simplify checker  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Common\SqlThread.cs    455
