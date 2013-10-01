@@ -1,4 +1,3 @@
-Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
 restore on top of an existing database? no error message
 package version number does not match assembly's version number.
 cntl-c kills the app, but we can handle the event: http://www.codeneverwritten.com/2006/10/ctrl-c-and-net-console-application.html
@@ -27,4 +26,8 @@ zip plugin
 
 done:
 striped backups
+Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
+
+regressions:
 make it SQL 2000 compatible.
+Current query to pull header and file detail only works with 2005 and above
