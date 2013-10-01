@@ -49,6 +49,15 @@ namespace MSBackupPipe.Cmd
 #if DEBUG
             //Debugger.Launch();
 #endif
+            //TODO: add pause on complete switch to command line
+            //TODO: restore on top of an existing database? no error message
+            //TODO: package version number does not match assembly's version number.
+            //TODO: cntl-c kills the app, but we can handle the event: http://www.codeneverwritten.com/2006/10/ctrl-c-and-net-console-application.html
+            //TODO: Do escaped cmd line args work?
+            //TODO: error on overwrite? 
+            //TODO: Verify SQL Server version compatibility preferred 2000 throught 2014+
+            //TODO: better device timeout, longer execution timeout (db might be locked)
+            //TODO: check file extensions
             try
             {
                 //everything here is modular and is passed from pipeline to pipeline these are the
@@ -63,7 +72,7 @@ namespace MSBackupPipe.Cmd
                 if (args.Length == 0)
                 {
                     Console.WriteLine("For help, type 'msbp.exe help'");
-                    Console.ReadKey();
+                    //                    Console.ReadKey();
                     return 0;
                 }
                 else
@@ -107,11 +116,11 @@ namespace MSBackupPipe.Cmd
                                     default:
                                         Console.WriteLine(string.Format("Command doesn't exist: {0}", args[1]));
                                         PrintUsage();
-                                        Console.ReadKey();
+                                        //                                        Console.ReadKey();
                                         return -1;
                                 }
                             }
-                            Console.ReadKey();
+                            //                            Console.ReadKey();
                             return 0;
                         //start of backup command
                         case "backup":
@@ -133,21 +142,21 @@ namespace MSBackupPipe.Cmd
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
                                     //this is so we can do a restore filelistonly and restore headeronly
 
-                                    WriteHeaderFilelist(databaseConfig,storageConfig, devicenames);
+                                    WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
 
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (ParallelExecutionException ee)
                                 {
                                     HandleExecutionExceptions(ee, true);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, true);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -169,19 +178,19 @@ namespace MSBackupPipe.Cmd
                                     //configure and start restore command
                                     BackupPipeSystem.Restore(storageConfig, pipelineConfig, databaseConfig, notifier);
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (ParallelExecutionException ee)
                                 {
                                     HandleExecutionExceptions(ee, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -205,7 +214,7 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 try
@@ -215,7 +224,7 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 String metaDataPath = storageConfig.Parameters["path"][0].ToString();
@@ -234,7 +243,7 @@ namespace MSBackupPipe.Cmd
                                     catch (Exception e)
                                     {
                                         HandleException(e, false);
-                                        Console.ReadKey();
+                                        //                                        Console.ReadKey();
                                         return -1;
                                     }
                                 }
@@ -264,13 +273,13 @@ namespace MSBackupPipe.Cmd
 
                                     Console.WriteLine(sb.ToString());
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -294,7 +303,7 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 try
@@ -304,7 +313,7 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 String metaDataPath = storageConfig.Parameters["path"][0].ToString();
@@ -323,7 +332,7 @@ namespace MSBackupPipe.Cmd
                                     catch (Exception e)
                                     {
                                         HandleException(e, false);
-                                        Console.ReadKey();
+                                        //                                        Console.ReadKey();
                                         return -1;
                                     }
                                 }
@@ -353,13 +362,13 @@ namespace MSBackupPipe.Cmd
 
                                     Console.WriteLine(sb.ToString());
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -381,19 +390,19 @@ namespace MSBackupPipe.Cmd
                                     //configure and start restore command
                                     BackupPipeSystem.Verify(storageConfig, pipelineConfig, databaseConfig, notifier);
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (ParallelExecutionException ee)
                                 {
                                     HandleExecutionExceptions(ee, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    Console.ReadKey();
+                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -405,7 +414,7 @@ namespace MSBackupPipe.Cmd
                             if (args.Length < 2)
                             {
                                 Console.WriteLine("Please give a plugin name, like msbp.exe helpplugin <plugin>");
-                                Console.ReadKey();
+                                //                                Console.ReadKey();
                                 return -1;
                             }
                             else
@@ -417,12 +426,12 @@ namespace MSBackupPipe.Cmd
                             Version version = Assembly.GetEntryAssembly().GetName().Version;
                             //ProcessorArchitecture arch = typeof(VirtualDeviceSet).Assembly.GetName().ProcessorArchitecture;
                             Console.WriteLine(string.Format("v{0} 32+64 ({1:yyyy MMM dd})", version, (new DateTime(2000, 1, 1)).AddDays(version.Build)));
-                            Console.ReadKey();
+                            //                            Console.ReadKey();
                             return 0;
                         default:
                             Console.WriteLine(string.Format("Unknown command: {0}", args[0]));
 
-                            Console.ReadKey();
+                            //                            Console.ReadKey();
                             PrintUsage();
                             return -1;
                     }
@@ -432,7 +441,7 @@ namespace MSBackupPipe.Cmd
             catch (Exception e)
             {
                 Util.WriteError(e);
-//cut down on verbosity of error messages in release mode
+                //TODO: cut down on verbosity of error messages in release mode
 
                 Exception ie = e;
                 while (ie.InnerException != null)
@@ -443,7 +452,7 @@ namespace MSBackupPipe.Cmd
                 {
                     Console.WriteLine(ie.Message);
                 }
-                Console.ReadKey();
+                //                Console.ReadKey();
                 PrintUsage();
 
                 return -1;
@@ -453,11 +462,11 @@ namespace MSBackupPipe.Cmd
         private static void WriteHeaderFilelist(ConfigPair databaseConfig, ConfigPair storageConfig, List<string> devices)
         {
             StringBuilder fileListHeaderOnlyQuery = new StringBuilder();
-            string queryCap = 
+            string queryCap =
                                 @")
 			            )
             );";
-            string headeronly = 
+            string headeronly =
                     @"SELECT [name]                      AS BackupName, 
                    [description]               AS BackupDescription, 
                    CASE 
@@ -552,7 +561,7 @@ namespace MSBackupPipe.Cmd
 				            physical_device_name in(";
 
 
-            string fileListOnly = 
+            string fileListOnly =
                         @"SELECT logical_name           AS LogicalName,
                                physical_name          AS PhysicalName, 
                                file_type              AS [Type], 
@@ -629,7 +638,7 @@ namespace MSBackupPipe.Cmd
             fileListHeaderOnlyQuery.Append(deviceList);
             fileListHeaderOnlyQuery.Append(queryCap);
 
-//            Console.WriteLine(fileListHeaderOnlyQuery);
+            //            Console.WriteLine(fileListHeaderOnlyQuery);
 
             string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
             string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
@@ -650,7 +659,7 @@ namespace MSBackupPipe.Cmd
                 connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
             }
 
-//            Console.WriteLine(metaDataPath);
+            //            Console.WriteLine(metaDataPath);
 
             DataSet headerFileList = new DataSet();
 
@@ -662,7 +671,7 @@ namespace MSBackupPipe.Cmd
                 adapter.SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn);
                 mCnn.Open();
                 adapter.Fill(headerFileList);
-            }  
+            }
 
             FileStream fs = new FileStream(metaDataPath, FileMode.Create);
             BinaryFormatter bFormat = new BinaryFormatter();

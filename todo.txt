@@ -1,30 +1,51 @@
-Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
-restore on top of an existing database? no error message
-package version number does not match assembly's version number.
-cntl-c kills the app, but we can handle the event: http://www.codeneverwritten.com/2006/10/ctrl-c-and-net-console-application.html
-Do escaped cmd line args work?
-error on overwrite? 
-
-does it work w/ SQL express? yes, but I have sql installed too.
-
-better device timeout, longer execution timeout (db might be locked)
-check file extensions
-
 document:
-only works on the same machine as SQL Server
-how to do log backups
-which compression should I use?  How do they compare?
-list plugins
+only works on the same machine as SQL Server.
+document using SQL authenticated accounts.
+backup strategies with full log and diffs.
+which compression should I use?
+How do they compare?
 
+Current Plugins
+Database plugins:
+db
+Pipeline plugins:
+bzip2
+gzip
+LZ4
+zip64
+Encryption Pipeline plugins:
+AES
+Resource Governor plugins:
+rate
+Storage plugins:
+local
 
 roadmap:
 gui
+add command line option to check to see if file exists with overwrite or not.
 when overwriting a file, don't destroy/recreate, but overwrite in place to preserve a defraged file.
-encryption plugin
-ftp plugin
+set inital file size based on backup size estimate then trim back down to actuall file size prevents file fragmentation.
+
+Suggested Plugins
+Database plugins:
+Pipeline plugins:
 7z plugin
-zip plugin
+Encryption Pipeline plugins:
+Blowfish
+3DES
+Resource Governor plugins:
+cpu
+Storage plugins:
+ftp plugin
+sftp plugin
 
 done:
 striped backups
+Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
+encryption plugin
+LZ4 plugin
+zip plugin
+
+regressions:
 make it SQL 2000 compatible.
+Current query to pull header and file detail only works with 2005 and above
