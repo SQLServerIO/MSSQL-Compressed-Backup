@@ -42,12 +42,6 @@ msbp.exe backup "db(database=model)" "LZ4" "local(path=c:\model.bak.zip)"
 Encryption:
 AES
 msbp.exe backup "db(database=model)" "AES(key=123456)" "local(path=c:\model.bak.zip)"
-Blowfish
-msbp.exe backup "db(database=model)" "Blowfish(key=123456)" "local(path=c:\model.bak.zip)"
-Rijndael
-msbp.exe backup "db(database=model)" "Rijndael(key=123456)" "local(path=c:\model.bak.zip)"
-TripleDES
-msbp.exe backup "db(database=model)" "TripleDES(key=123456)" "local(path=c:\model.bak.zip)"
 
 Filters:
 rate

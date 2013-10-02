@@ -25,6 +25,9 @@ gui
 add command line option to check to see if file exists with overwrite or not.
 when overwriting a file, don't destroy/recreate, but overwrite in place to preserve a defraged file.
 set inital file size based on backup size estimate then trim back down to actuall file size prevents file fragmentation.
+Build an installer.
+CLR stored procedure helpers.
+Multiplex file streams to a single file.
 
 Suggested Plugins
 Database plugins:
@@ -38,17 +41,6 @@ cpu
 Storage plugins:
 ftp plugin
 sftp plugin
-
-done:
-striped backups
-Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
-Rijendel encryption plugin
-LZ4 plugin
-zip plugin
-
-regressions:
-make it SQL 2000 compatible.
-Current query to pull header and file detail only works with 2005 and above
 
 TODO: currently shows time remaining need to add a switch to show ether time remaining or estimated datetime to finish. C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\CommandLineNotifier.cs 82
 TODO: enable switch to turn stats reporting on or off   C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  63
@@ -66,3 +58,17 @@ TODO: better device timeout, longer execution timeout (db might be locked)  C:\S
 TODO: check file extensions C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 60
 TODO: cut down on verbosity of error messages in release mode   C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 444
 TODO: simplify checker  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Common\SqlThread.cs    455
+
+done:
+striped backups
+Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
+Rijendel encryption plugin
+LZ4 plugin
+zip plugin
+restore header only
+restore file list only
+restore verify only
+
+regressions:
+make it SQL 2000 compatible.
+Current query to pull header and file detail only works with 2005 and above
