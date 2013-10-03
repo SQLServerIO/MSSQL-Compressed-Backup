@@ -31,7 +31,6 @@ using System.IO;
 
 using ICSharpCode.SharpZipLib.BZip2;
 
-
 namespace MSBackupPipe.StdPlugins
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Bzip")]
@@ -70,7 +69,7 @@ namespace MSBackupPipe.StdPlugins
 
             Console.WriteLine(string.Format("Compressor: bzip2 - level = {0}", level));
 
-            return new BZip2OutputStream(writeToStream, level);
+            return new BZip2OutputStream(writeToStream, level);// 
         }
 
         public string Name
@@ -91,7 +90,7 @@ namespace MSBackupPipe.StdPlugins
         {
             get
             {
-                return @"bzip2 Usage: \nbzip2 will compress (or uncompress) the data. \nBy default bzip2 compresses with level=1.  You use a level from 1 to 9 \n Example: \nbzip(level=5) \nLevel is ignored when restoring a database since the data is being uncompressed.";
+                return "bzip2 Usage: \nbzip2 will compress (or uncompress) the data. \nBy default bzip2 compresses with level=1.  You use a level from 1 to 9 \n Example: \nbzip(level=5) \nLevel is ignored when restoring a database since the data is being uncompressed.";
             }
         }
 

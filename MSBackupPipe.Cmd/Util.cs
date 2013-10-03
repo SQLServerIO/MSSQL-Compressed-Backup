@@ -37,7 +37,7 @@ namespace MSBackupPipe.Cmd
         {
             Console.WriteLine(e.Message);
             Console.WriteLine();
-            //cut down on verbosity in release builds
+            //TOOO: cut down on verbosity in release builds
             //there will always be multiple nested exeptions
             //and it makes it almost impossible to figure out 
             //what the real error is

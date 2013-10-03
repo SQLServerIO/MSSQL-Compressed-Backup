@@ -47,7 +47,7 @@ namespace MSBackupPipe.Cmd
         {
 
 #if DEBUG
-            //Debugger.Launch();
+            Debugger.Launch();
 #endif
             //TODO: add pause on complete switch to command line
             //TODO: restore on top of an existing database? no error message

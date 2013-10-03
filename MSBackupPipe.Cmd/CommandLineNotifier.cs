@@ -39,7 +39,8 @@ namespace MSBackupPipe.Cmd
         private DateTime mNextNotificationTimeUtc = DateTime.Today.AddDays(1);
         private DateTime mStartTime = DateTime.UtcNow;
 
-        private readonly TimeSpan mMinTimeForUpdate = TimeSpan.FromSeconds(0.5);//1.2
+        private readonly TimeSpan mMinTimeForUpdate = TimeSpan.FromSeconds(1.2);
+
 
         public CommandLineNotifier(bool isBackup)
         {
@@ -112,6 +113,9 @@ namespace MSBackupPipe.Cmd
             string bytesCompleted = "";
             string bytesMeasure = "";
 
+            if(bytesRead <= 0)
+            bytesRead = 1;
+
             if ((bytesRead / 1024.0) > 1)
             {
                 if ((bytesRead / 1024.0 / 1024) > 1)
@@ -137,7 +141,7 @@ namespace MSBackupPipe.Cmd
                 }
                 else
                 {
-                    bytesMeasure = " MB Completed.";
+                    bytesMeasure = " KB Completed.";
                     bytesCompleted = string.Format("{0:0.00}", (bytesRead / 1024.0));
                 }
             }
@@ -146,8 +150,20 @@ namespace MSBackupPipe.Cmd
                 bytesMeasure = " Completed.";
                 bytesCompleted = string.Format("{0:0.00}", (bytesRead));
             }
-            bytesCompleted = new string(' ', 6 - bytesCompleted.Length) + bytesCompleted;
-            Console.Write(bytesCompleted + bytesMeasure);
+            try
+            {
+                //TODO: BUG apparently there is a possibility that we will get a zero length string back
+                if (bytesCompleted.Length >= 3)
+                {
+                    bytesCompleted = new string(' ', 6 - bytesCompleted.Length) + bytesCompleted;
+                }
+                else
+                {
+                    bytesCompleted = new string(' ', 3) + bytesCompleted;
+                }
+                Console.Write(bytesCompleted + bytesMeasure);
+            }
+            catch { }
         }
 
 
@@ -156,14 +172,21 @@ namespace MSBackupPipe.Cmd
         /// </summary>
         /// <param name="elapsedTime">The total time elapsed from when the processing started</param>
         /// <returns>A timespan to wait until displaying the next update</returns>
+		//TODO: BUG This can cause a failure with slow compressors if the elapsedTime.TotalSeconds is set too low
+		//TODO: tie this to STATS instead of a time frame.
         private static TimeSpan CalculateNextNotification(TimeSpan elapsedTime)
         {
-            if (elapsedTime.TotalSeconds < 3000)
+            //DO NOT set this number too high it is what can lead to the race condition and kill the stream.
+            if (elapsedTime.TotalSeconds < 3)
             {
-                return TimeSpan.FromSeconds(1.2);//1.2
+                return TimeSpan.FromSeconds(1.2);
             }
             else
             {
+                if ((elapsedTime.TotalSeconds * 0.4) > 60)
+                {
+                    return TimeSpan.FromSeconds(60);
+                }
                 double secondsDelay = elapsedTime.TotalSeconds * 0.4;
                 return TimeSpan.FromSeconds(secondsDelay);
             }

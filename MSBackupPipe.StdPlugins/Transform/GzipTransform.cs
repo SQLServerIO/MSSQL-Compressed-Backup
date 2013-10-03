@@ -67,8 +67,9 @@ namespace MSBackupPipe.StdPlugins
             }
 
             Console.WriteLine(string.Format("Compressor: gzip - level = {0}", level));
-
-            return new GZipOutputStream(writeToStream, 1);
+            var gzipstream = new GZipOutputStream(writeToStream);
+            gzipstream.SetLevel(level);
+            return gzipstream;
         }
 
         public string Name
@@ -89,7 +90,7 @@ namespace MSBackupPipe.StdPlugins
         {
             get
             {
-                return @"gzip Usage: \ngzip will compress (or uncompress) the data. \nBy default gzip compresses with level=9.  You use a level from 1 to 9\n Example: gzip(level=5)\n Level is ignored when restoring a database since the data is being uncompressed.";
+                return "gzip Usage: \ngzip will compress (or uncompress) the data. \nBy default gzip compresses with level=9.  You use a level from 1 to 9\n Example: gzip(level=5)\n Level is ignored when restoring a database since the data is being uncompressed.";
             }
         }
 

@@ -23,7 +23,7 @@ THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
 WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
-
+//TODO: Switch to turn off tracking stream
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -113,8 +113,16 @@ namespace MSBackupPipe.StdPlugins
                 TimeSpan nextWait = mNotification.UpdateBytesProcessed(mTotalBytesProcessed, mThreadId);
                 mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
             }
-
-            return bytesRead;
+            //TODO: this check is here to keep from blowing up the backup process due to slow stream
+            //there are edge cases where we can get an invalid number here I'm investgating it.
+            if (bytesRead > 0)
+            {
+                return bytesRead;
+            }
+            else
+            {
+                return 0;
+            }
         }
 
         public override long Seek(long offset, SeekOrigin origin)

@@ -81,7 +81,7 @@ namespace MSBackupPipe.StdPlugins.Transform
         {
             get
             {
-                return @"rate Usage: \nYou can slow down the pipeline to ensure the server is not overloaded.\n Example: \nrate(rateMB=10.0)";
+                return "rate Usage: \nYou can slow down the pipeline to ensure the server is not overloaded.\n Example: \nrate(rateMB=10.0)";
             }
         }
 

@@ -86,13 +86,11 @@ namespace MSBackupPipe.StdPlugins.Storage
             }
 
             List<Stream> results = new List<Stream>(fileInfos.Count);
-            //int len = 0;
+            //TODO: preallocate file to speed up writes and cut down on fragmentations
+            //TODO: add unbuffered IO to speed up writes and cut down on memory usage
             foreach (FileInfo fi in fileInfos)
             {
                 results.Add(fi.Open(FileMode.Create));
-                //playing with preallocating the file size to cut down on fragmentation and speed up writes
-                //results[len].SetLength(400*1024*1024);
-                //len++;
             }
 
             return results.ToArray();
@@ -134,7 +132,7 @@ namespace MSBackupPipe.StdPlugins.Storage
         {
             get
             {
-                return @"local Usage: \nThis is a plugin to store or read a backup file. \nTo reference a file, enter: \nlocal(path=<file>) \nmsbp.exe has an alias for the local plugin.  If it begins with file://, it is \nconverted to the 'local' plugin equivalent.  file:///c:\model.bak is converted \nto local(path=c:\model.bak).";
+                return "local Usage: \nThis is a plugin to store or read a backup file. \nTo reference a file, enter: \nlocal(path=<file>) \nmsbp.exe has an alias for the local plugin.  If it begins with file://, it is \nconverted to the 'local' plugin equivalent.  file:///c:\\model.bak is converted \nto local(path=c:\\model.bak).";
             }
         }
 

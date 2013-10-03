@@ -70,7 +70,8 @@ namespace MSBackupPipe.StdPlugins
             Console.WriteLine(string.Format("LZMA: level = {0}", level));
 
             var lzmaep = new SharpCompress.Compressor.PPMd.PpmdProperties();
-            return new SharpCompress.Compressor.BZip2.BZip2Stream(writeToStream,SharpCompress.Compressor.CompressionMode.Compress,true,false);
+            //SharpCompress.Writer.WriterFactory
+            //return new SharpCompress.Compressor.LZMA.LzmaStream((writeToStream,SharpCompress.Compressor.CompressionMode.Compress,true,false);
         }
 
         public string Name

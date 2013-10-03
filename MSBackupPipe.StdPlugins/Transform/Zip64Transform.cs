@@ -111,7 +111,7 @@ namespace MSBackupPipe.StdPlugins
         {
             get
             {
-                return @"zip64 Usage: \nzip64 will compress (or uncompress) the data. \nBy default zip64 compresses with level=7, and the internal filename is \ndatabase.bak.  You use a level from 1 to 9 \nExample: \nzip64(level=5) \nand an internal filename like: \nzip64(level=5;filename=model.bak) \nLevel is ignored when restoring a database since the data is being uncompressed. \nzip64 creates a zip file in the new zip64 format to overcome 4 GB uncompressed \nfile limitation.";
+                return "zip64 Usage: \nzip64 will compress (or uncompress) the data. \nBy default zip64 compresses with level=7, and the internal filename is \ndatabase.bak.  You use a level from 1 to 9 \nExample: \nzip64(level=5) \nand an internal filename like: \nzip64(level=5;filename=model.bak) \nLevel is ignored when restoring a database since the data is being uncompressed. \nzip64 creates a zip file in the new zip64 format to overcome 4 GB uncompressed \nfile limitation.";
             }
         }
 
