@@ -5,21 +5,6 @@ backup strategies with full log and diffs.
 which compression should I use?
 How do they compare?
 
-Current Plugins
-Database plugins:
-db
-Pipeline plugins:
-bzip2
-gzip
-LZ4
-zip64
-Encryption Pipeline plugins:
-AES
-Resource Governor plugins:
-rate
-Storage plugins:
-local
-
 roadmap:
 gui
 add command line option to check to see if file exists with overwrite or not.
@@ -42,23 +27,6 @@ Storage plugins:
 ftp plugin
 sftp plugin
 
-TODO: currently shows time remaining need to add a switch to show ether time remaining or estimated datetime to finish. C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\CommandLineNotifier.cs 82
-TODO: enable switch to turn stats reporting on or off   C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  63
-TODO: add validator for maxtransfersize other than is number    C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  224
-TODO: add validator for blocksize other than is number  C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  240
-TODO: add validator for STATS other than is number  C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  257
-TODO: add pause on complete switch to command line  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 52
-TODO: restore on top of an existing database? no error message  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 53
-TODO: package version number does not match assembly's version number.  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 54
-TODO: cntl-c kills the app, but we can handle the event: http://www.codeneverwritten.com/2006/10/ctrl-c-and-net-console-application.html    C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 55
-TODO: Do escaped cmd line args work?    C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 56
-TODO: error on overwrite?   C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 57
-TODO: Verify SQL Server version compatibility preferred 2000 throught 2014+ C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 58
-TODO: better device timeout, longer execution timeout (db might be locked)  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 59
-TODO: check file extensions C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 60
-TODO: cut down on verbosity of error messages in release mode   C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 444
-TODO: simplify checker  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Common\SqlThread.cs    455
-
 done:
 striped backups
 Needs a completion message with stats: MB/s, MB read, MB written, compression ratio, etc
@@ -72,3 +40,29 @@ restore verify only
 regressions:
 make it SQL 2000 compatible.
 Current query to pull header and file detail only works with 2005 and above
+
+BUG: This can cause a failure with slow compressors if the elapsedTime.TotalSeconds is set too low C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\CommandLineNotifier.cs 175
+BUG: apparently there is a possibility that we will get a zero length string back  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\CommandLineNotifier.cs 155
+
+TODO: Verify SQL Server version compatibility preferred 2000 throught 2014+
+TODO: restore on top of an existing database? no error message
+TODO: package version number does not match assembly's version number.
+TODO: error on overwrite?
+TODO: Do escaped cmd line args work?
+TODO: check file extensions
+TODO: cntl-c kills the app, but we can handle the event.
+TODO: better device timeout, longer execution timeout (db might be locked)
+TODO: force kill all active connections on restore.
+
+TODO: tie this to STATS instead of a time frame.    C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\CommandLineNotifier.cs 176
+TODO: Switch to turn off tracking stream    C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\TrackingStream.cs   26
+TODO: simplify checker  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Common\SqlThread.cs    455
+TODO: preallocate file to speed up writes and cut down on fragmentations    C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Storage\LocalStorage.cs 89
+TODO: enable switch to turn stats reporting on or off   C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  63
+TODO: cut down on verbosity of error messages in release mode   C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 444
+TODO: currently shows time remaining need to add a switch to show ether time remaining or estimated datetime to finish. C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\CommandLineNotifier.cs 83
+TODO: add validator for STATS other than is number  C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  257
+TODO: add validator for maxtransfersize other than is number    C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  224
+TODO: add validator for blocksize other than is number  C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Database\DatabaseSource.cs  240
+TODO: add unbuffered IO to speed up writes and cut down on memory usage C:\Source\MSSQLCompressedBackup\MSBackupPipe.StdPlugins\Storage\LocalStorage.cs 90
+TODO: add pause on complete switch to command line  C:\Source\MSSQLCompressedBackup\MSBackupPipe.Cmd\Program.cs 52
