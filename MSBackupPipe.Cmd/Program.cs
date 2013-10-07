@@ -316,8 +316,8 @@ namespace MSBackupPipe.Cmd
                                     //                                    Console.ReadKey();
                                     return -1;
                                 }
-                                String metaDataPath = storageConfig.Parameters["path"][0].ToString();
 
+                                String metaDataPath = storageConfig.Parameters["path"][0].ToString();
                                 try
                                 {
                                     fs = new FileStream(metaDataPath, FileMode.Open);
@@ -674,6 +674,7 @@ namespace MSBackupPipe.Cmd
             }
 
             FileStream fs = new FileStream(metaDataPath, FileMode.Create);
+            headerFileList.RemotingFormat = SerializationFormat.Binary;
             BinaryFormatter bFormat = new BinaryFormatter();
             bFormat.Serialize(fs, headerFileList);
             fs.Close();
