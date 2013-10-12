@@ -143,7 +143,7 @@ namespace MSBackupPipe.Common
                             using (DisposableList<Stream> fileStreams = new DisposableList<Stream>(isBackup ? storage.GetBackupWriter(storageConfig.Parameters) : storage.GetRestoreReader(storageConfig.Parameters, out estimatedTotalBytes)))
                             using (DisposableList<Stream> topOfPilelines = new DisposableList<Stream>(CreatePipeline(pipelineConfig, fileStreams, isBackup, streamNotification, estimatedTotalBytes)))
                             {
-                                ReturnByteScale(estimatedTotalBytes);
+                                ReturnByteScale(estimatedTotalBytes,isBackup);
 
                                 VirtualDeviceSetConfig config = new VirtualDeviceSetConfig();
                                 config.Features = FeatureSet.PipeLike;
@@ -175,7 +175,7 @@ namespace MSBackupPipe.Common
                                     }
 
                                     updateNotifier.OnStart();
-                                    Console.WriteLine(string.Format("{0} started", isBackup ? "Backup" : "Restore"));
+                                    //Console.WriteLine(string.Format("{0} started", isBackup ? "Backup" : "Restore"));
 
                                     Exception sqlE = sql.EndExecute();
                                     sqlFinished = true;
@@ -228,7 +228,7 @@ namespace MSBackupPipe.Common
 
         }
 
-        private static void ReturnByteScale(long estimatedTotalBytes)
+        private static void ReturnByteScale(long estimatedTotalBytes, bool IsBackup)
         {
             if ((estimatedTotalBytes / 1024) > 1)
             {
@@ -238,26 +238,26 @@ namespace MSBackupPipe.Common
                     {
                         if ((estimatedTotalBytes / 1024 / 1024 / 1024 / 1024) > 1)
                         {
-                            Console.WriteLine("Estimated Number Of Terabytes To Backup: " + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024 / 1024)));
+                            Console.WriteLine(string.Format("Estimated Number Of Terabytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024 / 1024)));
                         }
                         else
                         {
-                            Console.WriteLine("Estimated Number Of Gigabytes To Backup: " + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024)));
+                            Console.WriteLine(string.Format("Estimated Number Of Gigabytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024)));
                         }
                     }
                     else
                     {
-                        Console.WriteLine("Estimated Number Of Megabytes To Backup: " + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024)));
+                        Console.WriteLine(string.Format("Estimated Number Of Megabytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024)));
                     }
                 }
                 else
                 {
-                    Console.WriteLine("Estimated Number Of Kilobytes To Backup: " + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0)));
+                    Console.WriteLine(string.Format("Estimated Number Of Kilobytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0)));
                 }
             }
             else
             {
-                Console.WriteLine("Estimated Number Of bytes To Backup: " + estimatedTotalBytes.ToString());
+                Console.WriteLine(string.Format("Estimated Number Of bytes To {0}:", IsBackup ? "Backup" : "Restore") + estimatedTotalBytes.ToString());
             }
         }
 

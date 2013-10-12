@@ -72,7 +72,6 @@ namespace MSBackupPipe.Cmd
                 if (args.Length == 0)
                 {
                     Console.WriteLine("For help, type 'msbp.exe help'");
-                    //                    Console.ReadKey();
                     return 0;
                 }
                 else
@@ -116,11 +115,9 @@ namespace MSBackupPipe.Cmd
                                     default:
                                         Console.WriteLine(string.Format("Command doesn't exist: {0}", args[1]));
                                         PrintUsage();
-                                        //                                        Console.ReadKey();
                                         return -1;
                                 }
                             }
-                            //                            Console.ReadKey();
                             return 0;
                         //start of backup command
                         case "backup":
@@ -144,19 +141,16 @@ namespace MSBackupPipe.Cmd
 
                                     WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
 
-                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (ParallelExecutionException ee)
                                 {
                                     HandleExecutionExceptions(ee, true);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, true);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -178,19 +172,16 @@ namespace MSBackupPipe.Cmd
                                     //configure and start restore command
                                     BackupPipeSystem.Restore(storageConfig, pipelineConfig, databaseConfig, notifier);
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (ParallelExecutionException ee)
                                 {
                                     HandleExecutionExceptions(ee, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -214,7 +205,6 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 try
@@ -224,7 +214,6 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 String metaDataPath = storageConfig.Parameters["path"][0].ToString();
@@ -243,7 +232,6 @@ namespace MSBackupPipe.Cmd
                                     catch (Exception e)
                                     {
                                         HandleException(e, false);
-                                        //                                        Console.ReadKey();
                                         return -1;
                                     }
                                 }
@@ -273,13 +261,11 @@ namespace MSBackupPipe.Cmd
 
                                     Console.WriteLine(sb.ToString());
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -303,7 +289,6 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 try
@@ -313,7 +298,6 @@ namespace MSBackupPipe.Cmd
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
 
@@ -332,7 +316,6 @@ namespace MSBackupPipe.Cmd
                                     catch (Exception e)
                                     {
                                         HandleException(e, false);
-                                        //                                        Console.ReadKey();
                                         return -1;
                                     }
                                 }
@@ -362,13 +345,11 @@ namespace MSBackupPipe.Cmd
 
                                     Console.WriteLine(sb.ToString());
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -390,19 +371,16 @@ namespace MSBackupPipe.Cmd
                                     //configure and start restore command
                                     BackupPipeSystem.Verify(storageConfig, pipelineConfig, databaseConfig, notifier);
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    //                                    Console.ReadKey();
                                     return 0;
                                 }
                                 catch (ParallelExecutionException ee)
                                 {
                                     HandleExecutionExceptions(ee, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                                 catch (Exception e)
                                 {
                                     HandleException(e, false);
-                                    //                                    Console.ReadKey();
                                     return -1;
                                 }
                             }
@@ -414,7 +392,6 @@ namespace MSBackupPipe.Cmd
                             if (args.Length < 2)
                             {
                                 Console.WriteLine("Please give a plugin name, like msbp.exe helpplugin <plugin>");
-                                //                                Console.ReadKey();
                                 return -1;
                             }
                             else
@@ -426,12 +403,10 @@ namespace MSBackupPipe.Cmd
                             Version version = Assembly.GetEntryAssembly().GetName().Version;
                             //ProcessorArchitecture arch = typeof(VirtualDeviceSet).Assembly.GetName().ProcessorArchitecture;
                             Console.WriteLine(string.Format("v{0} 32+64 ({1:yyyy MMM dd})", version, (new DateTime(2000, 1, 1)).AddDays(version.Build)));
-                            //                            Console.ReadKey();
                             return 0;
                         default:
                             Console.WriteLine(string.Format("Unknown command: {0}", args[0]));
 
-                            //                            Console.ReadKey();
                             PrintUsage();
                             return -1;
                     }
@@ -452,7 +427,6 @@ namespace MSBackupPipe.Cmd
                 {
                     Console.WriteLine(ie.Message);
                 }
-                //                Console.ReadKey();
                 PrintUsage();
 
                 return -1;
@@ -542,8 +516,10 @@ namespace MSBackupPipe.Cmd
                    compressed_backup_size      AS CompressedBackupSize, 
                    0                           AS Containment 
             FROM   msdb.dbo.backupset bs 
-                   LEFT OUTER JOIN msdb.sys.database_recovery_status drs 
-                                ON bs.family_guid = drs.family_guid
+            INNER JOIN msdb.sys.database_recovery_status drs 
+                    ON bs.family_guid = drs.family_guid 
+                    AND 
+                    bs.database_guid = drs.database_guid
             where bs.backup_set_id
             in(
 	            select 
@@ -562,30 +538,38 @@ namespace MSBackupPipe.Cmd
 
 
             string fileListOnly =
-                        @"SELECT logical_name           AS LogicalName,
-                               physical_name          AS PhysicalName, 
-                               file_type              AS [Type], 
-                               [filegroup_name]       AS FileGroupName, 
-                               [file_size]            AS Size, 
-                               35184372080640         AS MaxSize, 
-                               file_number            AS FileID, 
-                               create_lsn             AS CreateLSN, 
-                               drop_lsn               AS DropLSN, 
-                               file_guid              AS UniqueID, 
-                               read_only_lsn          AS ReadOnlyLSN, 
-                               read_write_lsn         AS ReadWriteLSN, 
-                               backup_size            AS BackupSizeInBytes, 
-                               source_file_block_size AS SourceBlockSize, 
-                               filegroup_guid         AS FileGroupID, 
-                               NULL                   AS logLogGroupGUID, 
-                               differential_base_lsn  AS DifferentialBaseLSN, 
-                               differential_base_guid AS DifferentialBaseGUID, 
-                               is_readonly            AS IsReadOnly, 
-                               is_present             AS IsPresent, 
-                               NULL                   AS TDEThumbprint 
-                        FROM   msdb.dbo.backupfile
+                        @"SELECT 
+                            bf.logical_name           AS LogicalName,
+                            bf.physical_name          AS PhysicalName, 
+                            bf.file_type              AS [Type], 
+                            bf.[filegroup_name]       AS FileGroupName, 
+                            bf.[file_size]            AS Size, 
+                            35184372080640         AS MaxSize, 
+                            bf.file_number            AS FileID, 
+                            bf.create_lsn             AS CreateLSN, 
+                            bf.drop_lsn               AS DropLSN, 
+                            bf.file_guid              AS UniqueID, 
+                            bf.read_only_lsn          AS ReadOnlyLSN, 
+                            bf.read_write_lsn         AS ReadWriteLSN, 
+                            bf.backup_size            AS BackupSizeInBytes, 
+                            bf.source_file_block_size AS SourceBlockSize, 
+                            bfg.[filegroup_id]         AS FileGroupID, 
+                            NULL                   AS logLogGroupGUID, 
+                            bf.differential_base_lsn  AS DifferentialBaseLSN, 
+                            bf.differential_base_guid AS DifferentialBaseGUID, 
+                            bf.is_readonly            AS IsReadOnly, 
+                            bf.is_present             AS IsPresent, 
+                            NULL                   AS TDEThumbprint 
+                        FROM   
+                            msdb.dbo.backupfile bf
+                        left outer join
+                            msdb.dbo.backupfilegroup bfg
+                        on
+                            bf.backup_set_id = bfg.backup_set_id 
+                        and 
+                            bf.filegroup_guid = bf.filegroup_guid
                         where 
-	                        backup_set_id in 
+	                        bf.backup_set_id in 
 	                        (
 	                        select 
 		                        backup_set_id 
@@ -637,8 +621,6 @@ namespace MSBackupPipe.Cmd
             fileListHeaderOnlyQuery.Append(fileListOnly);
             fileListHeaderOnlyQuery.Append(deviceList);
             fileListHeaderOnlyQuery.Append(queryCap);
-
-            //            Console.WriteLine(fileListHeaderOnlyQuery);
 
             string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
             string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
