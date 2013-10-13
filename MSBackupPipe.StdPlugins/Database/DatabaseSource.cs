@@ -447,8 +447,8 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("STOPATMARK"))
             {
-                withOptions.Add("STOPATMARK=@STOPATMARK");
-                param = new SqlParameter("@STOPATMARK", SqlDbType.VarChar);
+                withOptions.Add("STOPATMARK=@stopatmark");
+                param = new SqlParameter("@stopatmark", SqlDbType.VarChar);
                 param.Value = config["STOPATMARK"][0];
                 cmd.Parameters.Add(param);
             }
