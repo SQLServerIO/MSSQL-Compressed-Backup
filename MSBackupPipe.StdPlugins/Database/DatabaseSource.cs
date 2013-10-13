@@ -85,6 +85,8 @@ namespace MSBackupPipe.StdPlugins.Database
             mRestoreParamSchema.Add("RESTART", new ParameterInfo(false, false));
             mRestoreParamSchema.Add("RESTRICTED_USER", new ParameterInfo(false, false));
             mRestoreParamSchema.Add("STOPAT", new ParameterInfo(false, false));
+            mRestoreParamSchema.Add("STOPATMARK", new ParameterInfo(false, false));
+            mRestoreParamSchema.Add("STOPBEFOREMARK", new ParameterInfo(false, false));
             mRestoreParamSchema.Add("PARTIAL", new ParameterInfo(false, false));
             mRestoreParamSchema.Add("READ_WRITE_FILEGROUPS", new ParameterInfo(false, false));
             mRestoreParamSchema.Add("FILE", new ParameterInfo(true, false));
@@ -440,6 +442,22 @@ namespace MSBackupPipe.StdPlugins.Database
                 withOptions.Add("STOPAT=@stopat");
                 param = new SqlParameter("@stopat", SqlDbType.DateTime);
                 param.Value = stopAtDateTime;
+                cmd.Parameters.Add(param);
+            }
+
+            if (config.ContainsKey("STOPATMARK"))
+            {
+                withOptions.Add("STOPATMARK=@STOPATMARK");
+                param = new SqlParameter("@STOPATMARK", SqlDbType.VarChar);
+                param.Value = config["STOPATMARK"][0];
+                cmd.Parameters.Add(param);
+            }
+
+            if (config.ContainsKey("STOPBEFOREMARK"))
+            {
+                withOptions.Add("STOPBEFOREMARK=@stopbeforemark");
+                param = new SqlParameter("@stopbeforemark", SqlDbType.VarChar);
+                param.Value = config["STOPBEFOREMARK"][0];
                 cmd.Parameters.Add(param);
             }
 
