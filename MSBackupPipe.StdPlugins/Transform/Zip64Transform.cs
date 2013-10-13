@@ -1,5 +1,5 @@
 /*************************************************************************************\
-File Name  :  TripleDESTransform.cs
+File Name  :  Zip64DESTransform.cs
 Project    :  MSSQL Compressed Backup
 
 Copyright 2009 Clay Lenhart <clay@lenharts.net>

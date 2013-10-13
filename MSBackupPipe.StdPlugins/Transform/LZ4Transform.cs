@@ -1,5 +1,5 @@
 ﻿/*************************************************************************************\
-File Name  :  AESTransform.cs
+File Name  :  LZ4Transform.cs
 Project    :  MSSQL Compressed Backup
 
 Copyright 2009 Clay Lenhart <clay@lenharts.net>
