@@ -428,14 +428,68 @@ namespace MSBackupPipe.Cmd
                     Console.WriteLine(ie.Message);
                 }
                 PrintUsage();
-
+                
                 return -1;
             }
         }
 
         private static void WriteHeaderFilelist(ConfigPair databaseConfig, ConfigPair storageConfig, List<string> devices)
         {
+            /*
+            12 --2014 supported
+            11 --2012 supported
+            10 --2008/R2  supported
+            9  --2005 supported
+            8  --2000 NOT supported
+            7  --7.0 NOT supported
+            */
+            string instanceName = null;
+
+            if (databaseConfig.Parameters.ContainsKey("instancename"))
+            {
+                instanceName = databaseConfig.Parameters["instancename"][0];
+            }
+
+            if (instanceName != null)
+            {
+                instanceName = instanceName.Trim();
+            }
+
+            string clusterNetworkName = null;
+
+            if (databaseConfig.Parameters.ContainsKey("ClusterNetworkName"))
+            {
+                clusterNetworkName = databaseConfig.Parameters["ClusterNetworkName"][0];
+            }
+
+            string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
+            string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
+            string connectionString = "";
+            if (databaseConfig.Parameters.ContainsKey("user"))
+            {
+                if (databaseConfig.Parameters.ContainsKey("password"))
+                {
+                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), databaseConfig.Parameters["password"][0].ToString());
+                }
+                else
+                {
+                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), null);
+                }
+            }
+            else
+            {
+                connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
+            }
+
+            SqlConnection cnn = new SqlConnection(connectionString);
+            cnn.Open();
+            string version = GetVersion(cnn);
+            int majorVersionNum = GetMajorVersionNumber(version);
+            cnn.Close();
+
             StringBuilder fileListHeaderOnlyQuery = new StringBuilder();
+
+
             string queryCap =
                                 @")
 			            )
@@ -511,10 +565,17 @@ namespace MSBackupPipe.Cmd
                      WHEN [type] = 'P' THEN 'PARTIAL DIFFERENTIAL' 
                      WHEN [type] = 'Q' THEN 'PARTIAL DIFFERENTIAL' 
                      ELSE NULL 
-                   END                         AS BackupSetDescription, 
-                   backup_set_uuid             AS BackupSetGUID, 
+                   END                         AS BackupSetDescription,
+                   backup_set_uuid             AS BackupSetGUID";
+
+            string headeronly2008 = @", 
+                   compressed_backup_size      AS CompressedBackupSize";
+
+            string headeronly2012 =@", 
                    compressed_backup_size      AS CompressedBackupSize, 
-                   0                           AS Containment 
+                   0                           AS Containment ";
+
+            string headeronlytail = @"
             FROM   msdb.dbo.backupset bs 
             INNER JOIN msdb.sys.database_recovery_status drs 
                     ON bs.family_guid = drs.family_guid 
@@ -558,8 +619,12 @@ namespace MSBackupPipe.Cmd
                             bf.differential_base_lsn  AS DifferentialBaseLSN, 
                             bf.differential_base_guid AS DifferentialBaseGUID, 
                             bf.is_readonly            AS IsReadOnly, 
-                            bf.is_present             AS IsPresent, 
-                            NULL                   AS TDEThumbprint 
+                            bf.is_present             AS IsPresent";
+
+            string filelistonly2008 = @", 
+                            NULL                   AS TDEThumbprint ";
+
+            string filelistonlytail =@"
                         FROM   
                             msdb.dbo.backupfile bf
                         left outer join
@@ -587,24 +652,6 @@ namespace MSBackupPipe.Cmd
 
             String metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
 
-            string instanceName = null;
-
-            if (databaseConfig.Parameters.ContainsKey("instancename"))
-            {
-                instanceName = databaseConfig.Parameters["instancename"][0];
-            }
-
-            if (instanceName != null)
-            {
-                instanceName = instanceName.Trim();
-            }
-
-            string clusterNetworkName = null;
-
-            if (databaseConfig.Parameters.ContainsKey("ClusterNetworkName"))
-            {
-                clusterNetworkName = databaseConfig.Parameters["ClusterNetworkName"][0];
-            }
             StringBuilder deviceList = new StringBuilder();
 
             foreach (var d in devices)
@@ -616,50 +663,62 @@ namespace MSBackupPipe.Cmd
             deviceList.Remove(deviceList.Length - 1, 1);
 
             fileListHeaderOnlyQuery.Append(headeronly);
+            switch (majorVersionNum)
+            {
+                case 12:
+                    fileListHeaderOnlyQuery.Append(headeronly2012);
+                    break;
+                case 11:
+                    fileListHeaderOnlyQuery.Append(headeronly2012);
+                    break;
+                case 10:
+                    fileListHeaderOnlyQuery.Append(headeronly2008);
+                    break;
+            }
+            fileListHeaderOnlyQuery.Append(headeronlytail);
             fileListHeaderOnlyQuery.Append(deviceList);
             fileListHeaderOnlyQuery.Append(queryCap);
             fileListHeaderOnlyQuery.Append(fileListOnly);
+            switch (majorVersionNum)
+            {
+                case 12:
+                    fileListHeaderOnlyQuery.Append(filelistonly2008);
+                    break;
+                case 11:
+                    fileListHeaderOnlyQuery.Append(filelistonly2008);
+                    break;
+                case 10:
+                    fileListHeaderOnlyQuery.Append(filelistonly2008);
+                    break;
+            }
+            fileListHeaderOnlyQuery.Append(filelistonlytail);
             fileListHeaderOnlyQuery.Append(deviceList);
             fileListHeaderOnlyQuery.Append(queryCap);
-
-            string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
-            string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
-            string connectionString = "";
-            if (databaseConfig.Parameters.ContainsKey("user"))
-            {
-                if (databaseConfig.Parameters.ContainsKey("password"))
-                {
-                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), databaseConfig.Parameters["password"][0].ToString());
-                }
-                else
-                {
-                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), null);
-                }
-            }
-            else
-            {
-                connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
-            }
-
-            //            Console.WriteLine(metaDataPath);
 
             DataSet headerFileList = new DataSet();
 
             SqlCommand mCmd = new SqlCommand();
 
-            using (SqlConnection mCnn = new SqlConnection(connectionString))
+            /*
+             * we only support sql server 2005 and above for meta-data right now
+             */
+            //TODO: add support for 2000 and 7.0
+            if (majorVersionNum > 8)
             {
-                SqlDataAdapter adapter = new SqlDataAdapter();
-                adapter.SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn);
-                mCnn.Open();
-                adapter.Fill(headerFileList);
-            }
+                using (SqlConnection mCnn = new SqlConnection(connectionString))
+                {
+                    SqlDataAdapter adapter = new SqlDataAdapter();
+                    adapter.SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn);
+                    mCnn.Open();
+                    adapter.Fill(headerFileList);
+                }
 
-            FileStream fs = new FileStream(metaDataPath, FileMode.Create);
-            headerFileList.RemotingFormat = SerializationFormat.Binary;
-            BinaryFormatter bFormat = new BinaryFormatter();
-            bFormat.Serialize(fs, headerFileList);
-            fs.Close();
+                FileStream fs = new FileStream(metaDataPath, FileMode.Create);
+                headerFileList.RemotingFormat = SerializationFormat.Binary;
+                BinaryFormatter bFormat = new BinaryFormatter();
+                bFormat.Serialize(fs, headerFileList);
+                fs.Close();
+            }
         }
 
 
@@ -679,6 +738,7 @@ namespace MSBackupPipe.Cmd
             Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
 
             PrintUsage();
+//            Console.ReadKey();
         }
 
         private static void HandleException(Exception e, bool isBackup)
@@ -699,6 +759,7 @@ namespace MSBackupPipe.Cmd
             Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
 
             PrintUsage();
+//            Console.ReadKey();
         }
 
         private static List<string> CopySubArgs(string[] args)
@@ -887,6 +948,42 @@ namespace MSBackupPipe.Cmd
                 IBackupPlugin db = components[pluginName].GetConstructor(new Type[0]).Invoke(new object[0]) as IBackupPlugin;
                 Console.WriteLine(db.CommandLineHelp);
             }
+        }
+        private static string GetVersion(SqlConnection cnn)
+        {
+            using (SqlCommand cmd = new SqlCommand("SELECT @@version;", cnn))
+            {
+                return cmd.ExecuteScalar().ToString();
+            }
+        }
+
+        private static int GetMajorVersionNumber(string version)
+        {
+            //TODO: simplify checker
+            //could get edition and version number from SELECT SERVERPROPERTY('Edition') and SELECT SERVERPROPERTY('ProductVersion')
+            // example string:
+            // Microsoft SQL Server 2008 (SP1) - 10.0.2531.0 (Intel X86)   Mar 29 2009 10:27:29   Copyright (c) 1988-2008 Microsoft Corporation  Developer Edition on Windows NT 5.1 <X86> (Build 2600: Service Pack 3) 
+
+            int dashPos = version.IndexOf('-');
+            if (dashPos < 0)
+            {
+                throw new ArgumentException(string.Format("unexpected version string: {0}", version));
+            }
+
+            int dotPos = version.IndexOf('.', dashPos);
+
+            if (dotPos < 0)
+            {
+                throw new ArgumentException(string.Format("unexpected version string: {0}", version));
+            }
+
+            int versionNum;
+            if (!int.TryParse(version.Substring(dashPos + 1, dotPos - dashPos - 1), out versionNum))
+            {
+                throw new ArgumentException(string.Format("unexpected version string: {0}", version));
+            }
+
+            return versionNum;
         }
     }
 }
