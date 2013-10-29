@@ -508,10 +508,7 @@ namespace MSBackupPipe.Cmd
                      ELSE NULL 
                    END                         AS BackupType, 
                    expiration_date             AS ExpirationDate, 
-                   CASE 
-                     WHEN backup_size > compressed_backup_size THEN 1 
-                     ELSE 0 
-                   END                         AS Compressed, 
+                   0                           AS Compressed, 
                    position                    AS Position, 
                    2                           AS DeviceType, 
                    [user_name]                 AS UserName, 
