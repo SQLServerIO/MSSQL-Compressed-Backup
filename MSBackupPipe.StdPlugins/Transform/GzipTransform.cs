@@ -67,6 +67,7 @@ namespace MSBackupPipe.StdPlugins
             }
 
             Console.WriteLine(string.Format("Compressor: gzip - level = {0}", level));
+            //GZipOutputStream gzos = new GZipOutputStream(writeToStream, 4 * 1024 * 1024);//4mb block write
             var gzipstream = new GZipOutputStream(writeToStream);
             gzipstream.SetLevel(level);
             return gzipstream;
