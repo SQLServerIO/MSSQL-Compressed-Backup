@@ -137,6 +137,7 @@ namespace MSBackupPipe.StdPlugins
 
         public override void Write(byte[] buffer, int offset, int count)
         {
+            //write to file happens here!
             mSourceStream.Write(buffer, offset, count);
             mTotalBytesProcessed += count;
             if (DateTime.UtcNow > mNextNotificationUtc)
