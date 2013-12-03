@@ -79,7 +79,7 @@ namespace ReleasePackaging
                 dirToZip.Create();
 
 
-                string dirName = string.Format("MSSQLCompressedBackup-{3}-{1:yyyyMMdd}{2}_{0}", platformName, DateTime.UtcNow, BETA_STRING, VERSION_STRING);
+                string dirName = string.Format("MSSQLCompressedBackup_{3}_{1:yyyyMMdd}{2}_{0}", platformName, DateTime.UtcNow, BETA_STRING, VERSION_STRING);
                 string zipSubDirPath = dirToZip.CreateSubdirectory(dirName).FullName;
 
 
