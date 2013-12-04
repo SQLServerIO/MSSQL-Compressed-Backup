@@ -79,7 +79,7 @@ namespace ReleasePackaging
                 dirToZip.Create();
 
 
-                string dirName = string.Format("MSSQLCompressedBackup-{3}-{1:yyyyMMdd}{2}_{0}", platformName, DateTime.UtcNow, BETA_STRING, VERSION_STRING);
+                string dirName = string.Format("MSSQLCompressedBackup_{3}_{1:yyyyMMdd}{2}_{0}", platformName, DateTime.UtcNow, BETA_STRING, VERSION_STRING);
                 string zipSubDirPath = dirToZip.CreateSubdirectory(dirName).FullName;
 
 
@@ -92,7 +92,6 @@ namespace ReleasePackaging
                     }
                 }
 
-
                 string redistArch = platformName == "x86" ? "x86" : "x64";
                 string redistPath = Path.Combine(solutionDir.FullName, string.Format(@"Binaries\{0}\Microsoft.VC80.CRT", redistArch));
                 DirectoryInfo redistDir = new DirectoryInfo(redistPath);
@@ -102,9 +101,6 @@ namespace ReleasePackaging
                 {
                     file.CopyTo(Path.Combine(redistSubDirPath, file.Name));
                 }
-
-
-
 
                 string destFilename = dirName + ".zip";
                 FileInfo destinationZipFile = new FileInfo(solutionDir.FullName + @"\out\" + destFilename);
