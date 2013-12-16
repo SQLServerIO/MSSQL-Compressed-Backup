@@ -33,7 +33,6 @@ using System.Diagnostics;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Data;
 using System.Data.SqlClient;
-using System.Threading;
 
 //Additional includes other than default dot net framework should go here.
 using MSBackupPipe.StdPlugins;
