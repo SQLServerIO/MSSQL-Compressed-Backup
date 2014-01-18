@@ -85,6 +85,7 @@ namespace MSBackupPipe.Common
             mCmd.Connection = mCnn;
             mCmd.CommandTimeout = 0;
             estimatedTotalBytes = 0;
+            //Console.WriteLine(mCmd);
             switch (isBackup)
             {
                 case 1:
@@ -175,7 +176,7 @@ namespace MSBackupPipe.Common
 
                     DECLARE dbFiles CURSOR FOR
 	                    SELECT file_id, size
-	                    FROM master.sys.master_files
+	                    FROM master.sys.master_files with(NOLOCK)
 	                    WHERE type_desc = 'ROWS'
 		                    AND state_desc = 'ONLINE'
 		                    AND database_id = DB_ID(@dbName)
@@ -246,7 +247,7 @@ namespace MSBackupPipe.Common
 
                     DECLARE dbFiles CURSOR FOR
 	                    SELECT fileid, size
-	                    FROM sysfiles
+	                    FROM sysfiles WITH(NOLOCK)
 	                    WHERE (status & 0x2) > 0 AND (status & 0x40) = 0
                     	
                     DECLARE @result TABLE
@@ -494,6 +495,7 @@ namespace MSBackupPipe.Common
         {
             try
             {
+                //Console.WriteLine(mCmd.CommandText);
                 mCmd.EndExecuteNonQuery(mAsyncResult);
                 return null;
             }
