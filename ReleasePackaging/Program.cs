@@ -92,7 +92,6 @@ namespace ReleasePackaging
                     }
                 }
 
-
                 string redistArch = platformName == "x86" ? "x86" : "x64";
                 string redistPath = Path.Combine(solutionDir.FullName, string.Format(@"Binaries\{0}\Microsoft.VC80.CRT", redistArch));
                 DirectoryInfo redistDir = new DirectoryInfo(redistPath);
@@ -102,9 +101,6 @@ namespace ReleasePackaging
                 {
                     file.CopyTo(Path.Combine(redistSubDirPath, file.Name));
                 }
-
-
-
 
                 string destFilename = dirName + ".zip";
                 FileInfo destinationZipFile = new FileInfo(solutionDir.FullName + @"\out\" + destFilename);
