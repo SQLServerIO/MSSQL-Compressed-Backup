@@ -495,7 +495,7 @@ namespace MSBackupPipe.Cmd
 			            )
             );";
             string headeronly =
-                    @"SELECT [name]                      AS BackupName, 
+                    @"SELECT [name]            AS BackupName, 
                    [description]               AS BackupDescription, 
                    CASE 
                      WHEN [type] = 'D' THEN 1 
@@ -602,7 +602,7 @@ namespace MSBackupPipe.Cmd
                             bf.file_type              AS [Type], 
                             bf.[filegroup_name]       AS FileGroupName, 
                             bf.[file_size]            AS Size, 
-                            35184372080640         AS MaxSize, 
+                            35184372080640            AS MaxSize, 
                             bf.file_number            AS FileID, 
                             bf.create_lsn             AS CreateLSN, 
                             bf.drop_lsn               AS DropLSN, 
@@ -611,8 +611,8 @@ namespace MSBackupPipe.Cmd
                             bf.read_write_lsn         AS ReadWriteLSN, 
                             bf.backup_size            AS BackupSizeInBytes, 
                             bf.source_file_block_size AS SourceBlockSize, 
-                            bfg.[filegroup_id]         AS FileGroupID, 
-                            NULL                   AS logLogGroupGUID, 
+                            bfg.[filegroup_id]        AS FileGroupID, 
+                            NULL                      AS logLogGroupGUID, 
                             bf.differential_base_lsn  AS DifferentialBaseLSN, 
                             bf.differential_base_guid AS DifferentialBaseGUID, 
                             bf.is_readonly            AS IsReadOnly, 
@@ -722,6 +722,8 @@ namespace MSBackupPipe.Cmd
         private static void HandleExecutionExceptions(ParallelExecutionException ee, bool isBackup)
         {
             int i = 1;
+
+            #if DEBUG
             foreach (Exception e in ee.Exceptions)
             {
                 Console.WriteLine("------------------------");
@@ -730,11 +732,22 @@ namespace MSBackupPipe.Cmd
                 Console.WriteLine();
                 i++;
             }
+            #else
+            foreach (Exception e in ee.Exceptions)
+            {
+                Console.WriteLine("------------------------");
+                Console.WriteLine(string.Format("Exception #{0}", i));
+                Util.WriteError(e);
+                Console.WriteLine();
+                i++;
+                break;
+            }
+            #endif
 
             Console.WriteLine();
             Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
 
-            PrintUsage();
+//            PrintUsage();
 //            Console.ReadKey();
         }
 
