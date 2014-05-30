@@ -150,8 +150,8 @@ namespace MSBackupPipe.Cmd
                 bytesMeasure = " Completed.";
                 bytesCompleted = string.Format("{0:0.00}", (bytesRead));
             }
-            try
-            {
+//            try
+//            {
                 //TODO: BUG apparently there is a possibility that we will get a zero length string back
                 if (bytesCompleted.Length >= 3)
                 {
@@ -162,8 +162,8 @@ namespace MSBackupPipe.Cmd
                     bytesCompleted = new string(' ', 3) + bytesCompleted;
                 }
                 Console.Write(bytesCompleted + bytesMeasure);
-            }
-            catch { }
+//            }
+//            catch { }
         }
 
 

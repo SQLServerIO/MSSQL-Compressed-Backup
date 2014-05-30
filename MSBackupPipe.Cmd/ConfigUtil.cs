@@ -27,13 +27,8 @@ namespace MSBackupPipe.Cmd
 {
     internal static class ConfigUtil
     {
-
-
-
-
         public static ConfigPair ParseComponentConfig(Dictionary<string, Type> pipelineComponents, string componentString)
         {
-
             ConfigPair config = new ConfigPair();
 
             string componentName;
@@ -81,13 +76,11 @@ namespace MSBackupPipe.Cmd
             {
                 if (!string.IsNullOrEmpty(pair))
                 {
-
                     string[] nameValue = pair.Split(new char[] { '=' }, 2);
                     string name = nameValue[0].Trim();
                     string val = nameValue.Length > 1 ? nameValue[1].Trim() : null;
 
                     name = name.Replace(";;", ";");
-
 
                     if (val != null)
                     {
@@ -133,7 +126,6 @@ namespace MSBackupPipe.Cmd
                 pos = nextSemiPos + 1;
              
             }
-
         }
 
         /// <summary>

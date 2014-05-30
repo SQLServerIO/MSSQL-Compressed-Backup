@@ -71,7 +71,7 @@ namespace MSBackupPipe.Cmd
 
                 if (args.Length == 0)
                 {
-                    Console.WriteLine("For help, type 'msbp.exe help'");
+                    Console.WriteLine("For help, type \'msbp.exe help\'");
                     return 0;
                 }
                 else
@@ -137,8 +137,8 @@ namespace MSBackupPipe.Cmd
                                     List<string> devicenames;
                                     BackupPipeSystem.Backup(databaseConfig, pipelineConfig, storageConfig, notifier, out devicenames);
                                     Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    //this is so we can do a restore filelistonly and restore headeronly
 
+                                    //this is so we can do a restore filelistonly and restore headeronly
                                     WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
 
                                     return 0;
@@ -189,7 +189,7 @@ namespace MSBackupPipe.Cmd
                             {
                                 DateTime startTime = DateTime.UtcNow;
                                 BinaryFormatter bFormat = new BinaryFormatter();
-                                var hargs = CopySubArgs(args);
+                                //var hargs = CopySubArgs(args);
                                 var storageArg = args[1];
                                 ConfigPair storageConfig;
                                 FileStream fs;
@@ -217,23 +217,18 @@ namespace MSBackupPipe.Cmd
                                     return -1;
                                 }
                                 String metaDataPath = storageConfig.Parameters["path"][0].ToString();
-
+                                if (!File.Exists(metaDataPath))
+                                {
+                                    metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
+                                }
                                 try
                                 {
                                     fs = new FileStream(metaDataPath, FileMode.Open);
                                 }
-                                catch
+                                catch (Exception e)
                                 {
-                                    try
-                                    {
-                                        metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
-                                        fs = new FileStream(metaDataPath, FileMode.Open);
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        HandleException(e, false);
-                                        return -1;
-                                    }
+                                    HandleException(e, false);
+                                    return -1;
                                 }
 
                                 try
@@ -273,7 +268,7 @@ namespace MSBackupPipe.Cmd
                             {
                                 DateTime startTime = DateTime.UtcNow;
                                 BinaryFormatter bFormat = new BinaryFormatter();
-                                var hargs = CopySubArgs(args);
+                                //var hargs = CopySubArgs(args);
                                 var storageArg = args[1];
                                 ConfigPair storageConfig;
                                 FileStream fs;
@@ -428,7 +423,6 @@ namespace MSBackupPipe.Cmd
                     Console.WriteLine(ie.Message);
                 }
                 PrintUsage();
-                
                 return -1;
             }
         }
@@ -694,7 +688,7 @@ namespace MSBackupPipe.Cmd
 
             DataSet headerFileList = new DataSet();
 
-            SqlCommand mCmd = new SqlCommand();
+            //SqlCommand mCmd = new SqlCommand();
 
             /*
              * we only support sql server 2005 and above for meta-data right now
@@ -708,13 +702,15 @@ namespace MSBackupPipe.Cmd
                     adapter.SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn);
                     mCnn.Open();
                     adapter.Fill(headerFileList);
+                    adapter.Dispose();
                 }
 
-                FileStream fs = new FileStream(metaDataPath, FileMode.Create);
-                headerFileList.RemotingFormat = SerializationFormat.Binary;
-                BinaryFormatter bFormat = new BinaryFormatter();
-                bFormat.Serialize(fs, headerFileList);
-                fs.Close();
+                using (FileStream fs = new FileStream(metaDataPath, FileMode.Create))
+                {
+                    headerFileList.RemotingFormat = SerializationFormat.Binary;
+                    BinaryFormatter bFormat = new BinaryFormatter();
+                    bFormat.Serialize(fs, headerFileList);
+                }
             }
         }
 
@@ -723,7 +719,7 @@ namespace MSBackupPipe.Cmd
         {
             int i = 1;
 
-            #if DEBUG
+#if DEBUG
             foreach (Exception e in ee.Exceptions)
             {
                 Console.WriteLine("------------------------");
@@ -732,7 +728,7 @@ namespace MSBackupPipe.Cmd
                 Console.WriteLine();
                 i++;
             }
-            #else
+#else
             foreach (Exception e in ee.Exceptions)
             {
                 Console.WriteLine("------------------------");
@@ -742,13 +738,17 @@ namespace MSBackupPipe.Cmd
                 i++;
                 break;
             }
-            #endif
+#endif
 
             Console.WriteLine();
             Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
+#if DEBUG
+            Console.WriteLine();
+            Console.WriteLine("Hit Any Key To Continue:");
+            Console.ReadKey();
+#endif
 
-//            PrintUsage();
-//            Console.ReadKey();
+
         }
 
         private static void HandleException(Exception e, bool isBackup)
@@ -769,7 +769,12 @@ namespace MSBackupPipe.Cmd
             Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
 
             PrintUsage();
-//            Console.ReadKey();
+#if DEBUG
+            Console.WriteLine();
+            Console.WriteLine("Hit Any Key To Continue:");
+            Console.ReadKey();
+#endif
+
         }
 
         private static List<string> CopySubArgs(string[] args)
