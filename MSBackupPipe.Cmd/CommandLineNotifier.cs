@@ -38,7 +38,6 @@ namespace MSBackupPipe.Cmd
 
         private readonly TimeSpan _mMinTimeForUpdate = TimeSpan.FromSeconds(1.2);
 
-
         public CommandLineNotifier(bool isBackup)
         {
             _mIsBackup = isBackup;
@@ -65,7 +64,6 @@ namespace MSBackupPipe.Cmd
 
             lock (this)
             {
-
                 if (_mNextNotificationTimeUtc < utcNow && utcNow - _mStartTime > _mMinTimeForUpdate)
                 {
                     var percent = string.Format("{0:0.00}%", percentComplete * 100.0);
@@ -144,20 +142,16 @@ namespace MSBackupPipe.Cmd
                 bytesMeasure = " Completed.";
                 bytesCompleted = string.Format("{0:0.00}", (bytesRead));
             }
-//            try
-//            {
-                //TODO: BUG apparently there is a possibility that we will get a zero length string back
-                if (bytesCompleted.Length >= 3)
-                {
-                    bytesCompleted = new string(' ', 6 - bytesCompleted.Length) + bytesCompleted;
-                }
-                else
-                {
-                    bytesCompleted = new string(' ', 3) + bytesCompleted;
-                }
-                Console.Write(bytesCompleted + bytesMeasure);
-//            }
-//            catch { }
+            //TODO: BUG apparently there is a possibility that we will get a zero length string back
+            if (bytesCompleted.Length >= 3)
+            {
+                bytesCompleted = new string(' ', 6 - bytesCompleted.Length) + bytesCompleted;
+            }
+            else
+            {
+                bytesCompleted = new string(' ', 3) + bytesCompleted;
+            }
+            Console.Write(bytesCompleted + bytesMeasure);
         }
 
 

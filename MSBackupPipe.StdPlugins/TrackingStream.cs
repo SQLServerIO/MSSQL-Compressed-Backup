@@ -61,11 +61,10 @@ namespace MSBackupPipe.StdPlugins
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
         {
             _mTotalBytesProcessed += count;
-            if (DateTime.UtcNow > _mNextNotificationUtc)
-            {
-                var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
-                _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
-            }
+            if (DateTime.UtcNow <= _mNextNotificationUtc)
+                return _mSourceStream.BeginWrite(buffer, offset, count, callback, state);
+            var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
+            _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
             return _mSourceStream.BeginWrite(buffer, offset, count, callback, state);
         }
 
@@ -83,11 +82,9 @@ namespace MSBackupPipe.StdPlugins
         {
             var bytesRead = _mSourceStream.EndRead(asyncResult);
             _mTotalBytesProcessed += bytesRead;
-            if (DateTime.UtcNow > _mNextNotificationUtc)
-            {
-                var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
-                _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
-            }
+            if (DateTime.UtcNow <= _mNextNotificationUtc) return bytesRead;
+            var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
+            _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
             return bytesRead;
         }
 
@@ -104,20 +101,15 @@ namespace MSBackupPipe.StdPlugins
         public override int Read(byte[] buffer, int offset, int count)
         {
             var bytesRead = _mSourceStream.Read(buffer, offset, count);
-
             _mTotalBytesProcessed += bytesRead;
-            if (DateTime.UtcNow > _mNextNotificationUtc)
-            {
-                var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
-                _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
-            }
+
+            if (DateTime.UtcNow <= _mNextNotificationUtc) return bytesRead > 0 ? bytesRead : 0;
+
+            var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
+            _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
             //TODO: this check is here to keep from blowing up the backup process due to slow stream
             //there are edge cases where we can get an invalid number here I'm investgating it.
-            if (bytesRead > 0)
-            {
-                return bytesRead;
-            }
-            return 0;
+            return bytesRead > 0 ? bytesRead : 0;
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -135,11 +127,9 @@ namespace MSBackupPipe.StdPlugins
             //write to file happens here!
             _mSourceStream.Write(buffer, offset, count);
             _mTotalBytesProcessed += count;
-            if (DateTime.UtcNow > _mNextNotificationUtc)
-            {
-                var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
-                _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
-            }
+            if (DateTime.UtcNow <= _mNextNotificationUtc) return;
+            var nextWait = _mNotification.UpdateBytesProcessed(_mTotalBytesProcessed, _mThreadId);
+            _mNextNotificationUtc = DateTime.UtcNow.Add(nextWait);
         }
     }
 }

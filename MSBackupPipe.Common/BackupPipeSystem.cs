@@ -316,21 +316,21 @@ namespace MSBackupPipe.Common
 
             var binDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory;
 
-            if (binDir != null)
-                foreach (var file in binDir.GetFiles("*.dll"))
+            if (binDir == null) return result;
+            foreach (var file in binDir.GetFiles("*.dll"))
+            {
+                Assembly dll = null;
+                try
                 {
-                    Assembly dll = null;
-                    try
-                    {
-                        dll = Assembly.LoadFrom(file.FullName);
-                    }
-                    catch (Exception)
-                    { }
-                    if (dll != null)
-                    {
-                        FindPlugins(dll, result, interfaceName);
-                    }
+                    dll = Assembly.LoadFrom(file.FullName);
                 }
+                catch (Exception)
+                { }
+                if (dll != null)
+                {
+                    FindPlugins(dll, result, interfaceName);
+                }
+            }
             return result;
         }
 

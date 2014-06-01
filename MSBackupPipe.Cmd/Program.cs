@@ -32,10 +32,8 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Data;
-using System.Data.SqlClient;
 
 //Additional includes other than default dot net framework should go here.
-using MSBackupPipe.StdPlugins;
 using MSBackupPipe.Common;
 
 //main program entry point
@@ -75,26 +73,26 @@ namespace MSBackupPipe.Cmd
                     case "help":
                         if (args.Length == 1)
                         {
-                            PrintUsage();
+                            PrintHelp.PrintUsage();
                         }
                         else
                         {
                             switch (args[1].ToLowerInvariant())
                             {
                                 case "backup":
-                                    PrintBackupUsage();
+                                    PrintHelp.PrintBackupUsage();
                                     break;
                                 case "restore":
-                                    PrintRestoreUsage();
+                                    PrintHelp.PrintRestoreUsage();
                                     break;
                                 case "restoreverifyonly":
-                                    PrintVerifyOnlyUsage();
+                                    PrintHelp.PrintVerifyOnlyUsage();
                                     break;
                                 case "restoreheaderonly":
-                                    PrintRestoreHeaderOnlyUsage();
+                                    PrintHelp.PrintRestoreHeaderOnlyUsage();
                                     break;
                                 case "restorefilelistonly":
-                                    PrintRestoreFilelistOnlyUsage();
+                                    PrintHelp.PrintRestoreFilelistOnlyUsage();
                                     break;
                                 case "listplugins":
                                     Console.WriteLine("Lists the plugins available.  Go on, try it.");
@@ -108,7 +106,7 @@ namespace MSBackupPipe.Cmd
                                     break;
                                 default:
                                     Console.WriteLine("Command doesn't exist: {0}", args[1]);
-                                    PrintUsage();
+                                    PrintHelp.PrintUsage();
                                     return -1;
                             }
                         }
@@ -133,7 +131,7 @@ namespace MSBackupPipe.Cmd
                             Console.WriteLine("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime));
 
                             //this is so we can do a restore filelistonly and restore headeronly
-                            WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
+                            HeaderFileList.WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
 
                             return 0;
                         }
@@ -188,7 +186,6 @@ namespace MSBackupPipe.Cmd
                         ConfigPair storageConfig;
                         try
                         {
-
                             if (storageArg.StartsWith("file://"))
                             {
                                 var uri = new Uri(storageArg);
@@ -258,7 +255,6 @@ namespace MSBackupPipe.Cmd
                     {
                         var startTime = DateTime.UtcNow;
                         var bFormat = new BinaryFormatter();
-                        //var hargs = CopySubArgs(args);
                         var storageArg = args[1];
                         ConfigPair storageConfig;
                         try
@@ -362,7 +358,7 @@ namespace MSBackupPipe.Cmd
                     }
 
                     case "listplugins":
-                        PrintPlugins(pipelineComponents, databaseComponents, storageComponents);
+                        PrintHelp.PrintPlugins(pipelineComponents, databaseComponents, storageComponents);
                         return 0;
                     case "helpplugin":
                         if (args.Length < 2)
@@ -370,7 +366,7 @@ namespace MSBackupPipe.Cmd
                             Console.WriteLine("Please give a plugin name, like msbp.exe helpplugin <plugin>");
                             return -1;
                         }
-                        return PrintPluginHelp(args[1], pipelineComponents, databaseComponents, storageComponents);
+                        return PrintHelp.PrintPluginHelp(args[1], pipelineComponents, databaseComponents, storageComponents);
 
                     case "version":
                         var version = Assembly.GetEntryAssembly().GetName().Version;
@@ -380,7 +376,7 @@ namespace MSBackupPipe.Cmd
                     default:
                         Console.WriteLine("Unknown command: {0}", args[0]);
 
-                        PrintUsage();
+                        PrintHelp.PrintUsage();
                         return -1;
                 }
             }
@@ -399,288 +395,9 @@ namespace MSBackupPipe.Cmd
                 {
                     Console.WriteLine(ie.Message);
                 }
-                PrintUsage();
+                PrintHelp.PrintUsage();
                 return -1;
             }
-        }
-
-        private static void WriteHeaderFilelist(ConfigPair databaseConfig, ConfigPair storageConfig, IEnumerable<string> devices)
-        {
-            /*
-            12 --2014 supported
-            11 --2012 supported
-            10 --2008/R2  supported
-            9  --2005 supported
-            8  --2000 NOT supported
-            7  --7.0 NOT supported
-            */
-            string instanceName = null;
-
-            if (databaseConfig.Parameters.ContainsKey("instancename"))
-            {
-                instanceName = databaseConfig.Parameters["instancename"][0];
-            }
-
-            if (instanceName != null)
-            {
-                instanceName = instanceName.Trim();
-            }
-
-            string clusterNetworkName = null;
-
-            if (databaseConfig.Parameters.ContainsKey("ClusterNetworkName"))
-            {
-                clusterNetworkName = databaseConfig.Parameters["ClusterNetworkName"][0];
-            }
-
-            var serverConnectionName = clusterNetworkName ?? ".";
-            var dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
-            string connectionString;
-            if (databaseConfig.Parameters.ContainsKey("user"))
-            {
-                connectionString = databaseConfig.Parameters.ContainsKey("password") ? string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0], databaseConfig.Parameters["password"][0]) : string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0], null);
-            }
-            else
-            {
-                connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
-            }
-
-            int majorVersionNum;
-            using (var cnn = new SqlConnection(connectionString))
-            {
-                var version = GetVersion(cnn);
-                majorVersionNum = GetMajorVersionNumber(version);
-            }
-
-            var fileListHeaderOnlyQuery = new StringBuilder();
-
-
-            const string queryCap = @")
-			            )
-            );";
-            const string headeronly = @"SELECT [name]            AS BackupName, 
-                   [description]               AS BackupDescription, 
-                   CASE 
-                     WHEN [type] = 'D' THEN 1 
-                     WHEN [type] = 'I' THEN 5 
-                     WHEN [type] = 'L' THEN 2 
-                     WHEN [type] = 'F' THEN 4 
-                     WHEN [type] = 'G' THEN 6 
-                     WHEN [type] = 'P' THEN 7 
-                     WHEN [type] = 'Q' THEN 8 
-                     ELSE NULL 
-                   END                         AS BackupType, 
-                   expiration_date             AS ExpirationDate, 
-                   0                           AS Compressed, 
-                   position                    AS Position, 
-                   2                           AS DeviceType, 
-                   [user_name]                 AS UserName, 
-                   [server_name]               AS ServerName, 
-                   [database_name]             AS DatabaseName, 
-                   database_version            AS DatabaseVersion, 
-                   database_creation_date      AS DatabaseCreationDate, 
-                   backup_size                 AS BackupSize, 
-                   first_lsn                   AS FirstLSN, 
-                   last_lsn                    AS LastLSN, 
-                   checkpoint_lsn              AS CheckpointLSN, 
-                   database_backup_lsn         AS DatabaseBackupLSN, 
-                   backup_start_date           AS BackupStartDate, 
-                   backup_finish_date          AS BackupFinishDate, 
-                   sort_order                  AS SortOrder, 
-                   code_page                   AS CodePage, 
-                   unicode_locale              AS UnicodeLocaleid, 
-                   unicode_compare_style       AS UnicodeComparisionStyle, 
-                   compatibility_level         AS CompatibilityLevel, 
-                   software_vendor_id          AS SoftwareVendorid, 
-                   software_major_version      AS SoftwareVersionMajor, 
-                   software_minor_version      AS SoftwareVersionMinor, 
-                   software_build_version      AS SoftwareVersionBuild, 
-                   machine_name                AS MachineName, 
-                   flags                       AS Flags, 
-                   drs.database_guid           AS BindingID, 
-                   drs.recovery_fork_guid      AS RecoveryForkID, 
-                   collation_name              AS Collation, 
-                   bs.family_guid              AS FamilyGUID, 
-                   has_bulk_logged_data        AS HasBulkLoggedData, 
-                   is_snapshot                 AS IsSnapshot, 
-                   is_readonly                 AS IsReadonly, 
-                   is_single_user              AS IsSingleUser, 
-                   has_backup_checksums        AS HasBackupChecksums, 
-                   is_damaged                  AS IsDamaged, 
-                   begins_log_chain            AS BeginsLogChain, 
-                   has_incomplete_metadata     AS HasIncompleteMetaData, 
-                   is_force_offline            AS IsForceOffline, 
-                   is_copy_only                AS IsCopyOnly, 
-                   bs.first_recovery_fork_guid AS FirstRecoveryForkID, 
-                   bs.fork_point_lsn           AS ForPointLSN, 
-                   recovery_model              AS RecoveryModel, 
-                   differential_base_lsn       AS DifferentialBaseLSN, 
-                   differential_base_guid      AS DifferentialBaseGUID, 
-                   CASE 
-                     WHEN [type] = 'D' THEN 'DATABASE' 
-                     WHEN [type] = 'I' THEN 'DATABASE DIFFERENTIAL' 
-                     WHEN [type] = 'L' THEN 'TRANSACTION LOG' 
-                     WHEN [type] = 'F' THEN 'FILE OR FILEGROUP' 
-                     WHEN [type] = 'G' THEN 'FILE DIFFERENTIAL PARTIAL' 
-                     WHEN [type] = 'P' THEN 'PARTIAL DIFFERENTIAL' 
-                     WHEN [type] = 'Q' THEN 'PARTIAL DIFFERENTIAL' 
-                     ELSE NULL 
-                   END                         AS BackupSetDescription,
-                   backup_set_uuid             AS BackupSetGUID";
-
-            const string headeronly2008 = @", 
-                   compressed_backup_size      AS CompressedBackupSize";
-
-            const string headeronly2012 = @", 
-                   compressed_backup_size      AS CompressedBackupSize, 
-                   0                           AS Containment ";
-
-            const string headeronlytail = @"
-            FROM   msdb.dbo.backupset bs 
-            INNER JOIN msdb.sys.database_recovery_status drs 
-                    ON bs.family_guid = drs.family_guid 
-                    AND 
-                    bs.database_guid = drs.database_guid
-            where bs.backup_set_id
-            in(
-	            select 
-			            backup_set_id 
-		            from 
-			            msdb.dbo.backupset 
-		            where 
-			            media_set_id in 
-			            (
-			            select 
-				            distinct media_set_id 
-			            from 
-				            msdb.dbo.backupmediafamily 
-			            where 
-				            physical_device_name in(";
-
-
-            const string fileListOnly = @"SELECT 
-                            bf.logical_name           AS LogicalName,
-                            bf.physical_name          AS PhysicalName, 
-                            bf.file_type              AS [Type], 
-                            bf.[filegroup_name]       AS FileGroupName, 
-                            bf.[file_size]            AS Size, 
-                            35184372080640            AS MaxSize, 
-                            bf.file_number            AS FileID, 
-                            bf.create_lsn             AS CreateLSN, 
-                            bf.drop_lsn               AS DropLSN, 
-                            bf.file_guid              AS UniqueID, 
-                            bf.read_only_lsn          AS ReadOnlyLSN, 
-                            bf.read_write_lsn         AS ReadWriteLSN, 
-                            bf.backup_size            AS BackupSizeInBytes, 
-                            bf.source_file_block_size AS SourceBlockSize, 
-                            bfg.[filegroup_id]        AS FileGroupID, 
-                            NULL                      AS logLogGroupGUID, 
-                            bf.differential_base_lsn  AS DifferentialBaseLSN, 
-                            bf.differential_base_guid AS DifferentialBaseGUID, 
-                            bf.is_readonly            AS IsReadOnly, 
-                            bf.is_present             AS IsPresent";
-
-            const string filelistonly2008 = @", 
-                            NULL                   AS TDEThumbprint ";
-
-            const string filelistonlytail = @"
-                        FROM   
-                            msdb.dbo.backupfile bf
-                        left outer join
-                            msdb.dbo.backupfilegroup bfg
-                        on
-                            bf.backup_set_id = bfg.backup_set_id 
-                        and 
-                            bf.filegroup_guid = bf.filegroup_guid
-                        where 
-	                        bf.backup_set_id in 
-	                        (
-	                        select 
-		                        backup_set_id 
-	                        from 
-		                        msdb.dbo.backupset 
-	                        where 
-		                        media_set_id in 
-		                        (
-		                        select 
-			                        distinct media_set_id 
-		                        from 
-			                        msdb.dbo.backupmediafamily 
-		                        where 
-				                        physical_device_name in(";
-
-            var metaDataPath = storageConfig.Parameters["path"][0] + ".hfl";
-
-            var deviceList = new StringBuilder();
-
-            foreach (var d in devices)
-            {
-                deviceList.Append("'");
-                deviceList.Append(d);
-                deviceList.Append("',");
-            }
-            deviceList.Remove(deviceList.Length - 1, 1);
-
-            fileListHeaderOnlyQuery.Append(headeronly);
-            switch (majorVersionNum)
-            {
-                case 12:
-                    fileListHeaderOnlyQuery.Append(headeronly2012);
-                    break;
-                case 11:
-                    fileListHeaderOnlyQuery.Append(headeronly2012);
-                    break;
-                case 10:
-                    fileListHeaderOnlyQuery.Append(headeronly2008);
-                    break;
-            }
-            fileListHeaderOnlyQuery.Append(headeronlytail);
-            fileListHeaderOnlyQuery.Append(deviceList);
-            fileListHeaderOnlyQuery.Append(queryCap);
-            fileListHeaderOnlyQuery.Append(fileListOnly);
-            switch (majorVersionNum)
-            {
-                case 12:
-                    fileListHeaderOnlyQuery.Append(filelistonly2008);
-                    break;
-                case 11:
-                    fileListHeaderOnlyQuery.Append(filelistonly2008);
-                    break;
-                case 10:
-                    fileListHeaderOnlyQuery.Append(filelistonly2008);
-                    break;
-            }
-            fileListHeaderOnlyQuery.Append(filelistonlytail);
-            fileListHeaderOnlyQuery.Append(deviceList);
-            fileListHeaderOnlyQuery.Append(queryCap);
-
-            var headerFileList = new DataSet();
-
-            /*
-             * we only support sql server 2005 and above for meta-data right now
-             */
-            //TODO: add support for 2000 and 7.0
-            if (majorVersionNum > 8)
-            {
-                using (var mCnn = new SqlConnection(connectionString))
-                {
-                    var adapter = new SqlDataAdapter
-                    {
-                        SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn)
-                    };
-                    mCnn.Open();
-                    adapter.Fill(headerFileList);
-                    adapter.Dispose();
-                }
-
-                using (var fs = new FileStream(metaDataPath, FileMode.Create))
-                {
-                    headerFileList.RemotingFormat = SerializationFormat.Binary;
-                    var bFormat = new BinaryFormatter();
-                    bFormat.Serialize(fs, headerFileList);
-                }
-            }
-            headerFileList.Dispose();
         }
 
         private static void HandleExecutionExceptions(ParallelExecutionException ee, bool isBackup)
@@ -722,7 +439,7 @@ namespace MSBackupPipe.Cmd
             Console.WriteLine();
             Console.WriteLine("The {0} failed.", isBackup ? "backup" : "restore");
 
-            PrintUsage();
+            PrintHelp.PrintUsage();
 #if DEBUG
             Console.WriteLine();
             Console.WriteLine("Hit Any Key To Continue:");
@@ -731,17 +448,17 @@ namespace MSBackupPipe.Cmd
 
         }
 
-        private static List<string> CopySubArgs(string[] args)
+        private static List<string> CopySubArgs(IList<string> args)
         {
-            var result = new List<string>(args.Length - 2);
-            for (var i = 1; i < args.Length; i++)
+            var result = new List<string>(args.Count - 2);
+            for (var i = 1; i < args.Count; i++)
             {
                 result.Add(args[i]);
             }
             return result;
         }
 
-        private static List<ConfigPair> ParseBackupOrRestoreArgs(List<string> args, int commandType, Dictionary<string, Type> pipelineComponents, Dictionary<string, Type> databaseComponents, Dictionary<string, Type> storageComponents, out ConfigPair databaseConfig, out ConfigPair storageConfig)
+        private static List<ConfigPair> ParseBackupOrRestoreArgs(IList<string> args, int commandType, Dictionary<string, Type> pipelineComponents, Dictionary<string, Type> databaseComponents, Dictionary<string, Type> storageComponents, out ConfigPair databaseConfig, out ConfigPair storageConfig)
         {
             if (args.Count < 2)
             {
@@ -798,7 +515,7 @@ namespace MSBackupPipe.Cmd
             return pipeline;
         }
 
-        private static List<ConfigPair> BuildPipelineFromString(List<string> pipelineArgs, Dictionary<string, Type> pipelineComponents)
+        private static List<ConfigPair> BuildPipelineFromString(IList<string> pipelineArgs, Dictionary<string, Type> pipelineComponents)
         {
             for (var i = 0; i < pipelineArgs.Count; i++)
             {
@@ -809,141 +526,6 @@ namespace MSBackupPipe.Cmd
             results.AddRange(pipelineArgs.Select(componentString => ConfigUtil.ParseComponentConfig(pipelineComponents, componentString)));
 
             return results;
-        }
-
-        private static void PrintUsage()
-        {
-            Console.WriteLine("Below are the commands for msbp.exe:");
-            Console.WriteLine("\tmsbp.exe help");
-            Console.WriteLine("\tmsbp.exe backup");
-            Console.WriteLine("\tmsbp.exe restore");
-            Console.WriteLine("\tmsbp.exe restoreverifyonly");
-            Console.WriteLine("\tmsbp.exe restoreheaderonly");
-            Console.WriteLine("\tmsbp.exe restorefilelistonly");
-            Console.WriteLine("\tmsbp.exe listplugins");
-            Console.WriteLine("\tmsbp.exe helpplugin");
-            Console.WriteLine("\tmsbp.exe version");
-            Console.WriteLine("");
-            Console.WriteLine("For more information, type msbp.exe help <command>");
-        }
-
-        private static void PrintBackupUsage()
-        {
-            Console.WriteLine("To backup a database, the first parameter must be the database in brackets, and the last parameter must be the file.  The middle parameters can modify the data, for example compressing it.");
-            Console.WriteLine("To backup to a standard *.bak file:");
-            Console.WriteLine("\tmsbp.exe backup [model] file:///c:\\model.bak");
-            Console.WriteLine("To compress the backup file using gzip:");
-            Console.WriteLine("\tmsbp.exe backup [model] gzip file:///c:\\model.bak.gz");
-            Console.WriteLine("");
-            Console.WriteLine("For more information on the different pipline options, type msbp.exe listplugins");
-        }
-
-        private static void PrintRestoreUsage()
-        {
-            Console.WriteLine("To restore a database, the first parameter must be the file, and the last parameter must be the database in brackets.  The middle parameters can modify the data, for example uncompressing it.");
-            Console.WriteLine("To restore to a standard *.bak file:");
-            Console.WriteLine("\tmsbp.exe restore file:///c:\\model.bak [model]");
-            Console.WriteLine("To compress the backup file using gzip:");
-            Console.WriteLine("\tmsbp.exe restore file:///c:\\model.bak.gz gzip [model]");
-            Console.WriteLine("");
-            Console.WriteLine("For more information on the different pipline options, type msbp.exe listplugins");
-        }
-
-        private static void PrintVerifyOnlyUsage()
-        {
-            Console.WriteLine("To verify a backup set, the first parameter must be the file, and the last parameter must be the database in brackets.  The middle parameters can modify the data, for example uncompressing it.");
-            Console.WriteLine("To verify a standard *.bak file:");
-            Console.WriteLine("\tmsbp.exe restoreverifyonly file:///c:\\model.bak [model]");
-            Console.WriteLine("To decompress  the backup file using gzip:");
-            Console.WriteLine("\tmsbp.exe restoreverifyonly file:///c:\\model.bak.gz gzip [model]");
-            Console.WriteLine("");
-            Console.WriteLine("For more information on the different pipline options, type msbp.exe listplugins");
-        }
-
-        private static void PrintRestoreHeaderOnlyUsage()
-        {
-            Console.WriteLine("To restore header only, the first parameter must be the metadata (hfl) file");
-            Console.WriteLine("\tmsbp.exe restoreheaderonly file:///c:\\model.bak.gz.hfl");
-        }
-
-        private static void PrintRestoreFilelistOnlyUsage()
-        {
-            Console.WriteLine("To restore filelist only, the first parameter must be the metadata (hfl) file");
-            Console.WriteLine("\tmsbp.exe restorefilelist file:///c:\\model.bak.gz.hfl");
-        }
-
-        private static void PrintPlugins(Dictionary<string, Type> pipelineComponents, Dictionary<string, Type> databaseComponents, Dictionary<string, Type> storageComponents)
-        {
-            Console.WriteLine("Database plugins:");
-            PrintComponents(databaseComponents);
-            Console.WriteLine("Pipeline plugins:");
-            PrintComponents(pipelineComponents);
-            Console.WriteLine("Storage plugins:");
-            PrintComponents(storageComponents);
-
-            Console.WriteLine("");
-            Console.WriteLine("To find more information about a plugin, type msbp.exe helpplugin <plugin>");
-        }
-
-        private static void PrintComponents(Dictionary<string, Type> components)
-        {
-            foreach (var db in (from key in components.Keys select components[key].GetConstructor(new Type[0]) into constructorInfo where constructorInfo != null select constructorInfo.Invoke(new object[0])).OfType<IBackupPlugin>())
-            {
-                Console.WriteLine("\t" + db.Name);
-            }
-        }
-
-        private static int PrintPluginHelp(string pluginName, Dictionary<string, Type> pipelineComponents, Dictionary<string, Type> databaseComponents, Dictionary<string, Type> storageComponents)
-        {
-            PrintPluginHelp(pluginName, databaseComponents);
-            PrintPluginHelp(pluginName, pipelineComponents);
-            PrintPluginHelp(pluginName, storageComponents);
-            return 0;
-        }
-
-        private static void PrintPluginHelp(string pluginName, Dictionary<string, Type> components)
-        {
-            if (!components.ContainsKey(pluginName)) return;
-            var constructorInfo = components[pluginName].GetConstructor(new Type[0]);
-            if (constructorInfo == null) return;
-            var db = constructorInfo.Invoke(new object[0]) as IBackupPlugin;
-            if (db != null) Console.WriteLine(db.CommandLineHelp);
-        }
-        private static string GetVersion(SqlConnection cnn)
-        {
-            using (var cmd = new SqlCommand("SELECT @@version;", cnn))
-            {
-                return cmd.ExecuteScalar().ToString();
-            }
-        }
-
-        private static int GetMajorVersionNumber(string version)
-        {
-            //TODO: simplify checker
-            //could get edition and version number from SELECT SERVERPROPERTY('Edition') and SELECT SERVERPROPERTY('ProductVersion')
-            // example string:
-            // Microsoft SQL Server 2008 (SP1) - 10.0.2531.0 (Intel X86)   Mar 29 2009 10:27:29   Copyright (c) 1988-2008 Microsoft Corporation  Developer Edition on Windows NT 5.1 <X86> (Build 2600: Service Pack 3) 
-
-            var dashPos = version.IndexOf('-');
-            if (dashPos < 0)
-            {
-                throw new ArgumentException(string.Format("unexpected version string: {0}", version));
-            }
-
-            var dotPos = version.IndexOf('.', dashPos);
-
-            if (dotPos < 0)
-            {
-                throw new ArgumentException(string.Format("unexpected version string: {0}", version));
-            }
-
-            int versionNum;
-            if (!int.TryParse(version.Substring(dashPos + 1, dotPos - dashPos - 1), out versionNum))
-            {
-                throw new ArgumentException(string.Format("unexpected version string: {0}", version));
-            }
-
-            return versionNum;
         }
     }
 }
