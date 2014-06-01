@@ -25,8 +25,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MSBackupPipe.Common
 {
@@ -47,6 +45,7 @@ namespace MSBackupPipe.Common
         /// Updates the percent complete.
         /// </summary>
         /// <param name="percentComplete">A number from 0.0 to 1.0</param>
+        /// <param name="bytes"></param>
         /// <returns>The *suggested* duration to be notified again</returns>
         TimeSpan OnStatusUpdate(float percentComplete, long bytes);
     }

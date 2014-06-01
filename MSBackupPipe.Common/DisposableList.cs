@@ -27,16 +27,14 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace MSBackupPipe.Common
 {
     class DisposableList<T> : List<T>, IDisposable where T : IDisposable
     {
-        private bool mDisposed = false;
+        private bool _mDisposed;
 
         public DisposableList()
-            : base()
         {
         }
 
@@ -54,7 +52,8 @@ namespace MSBackupPipe.Common
 
         public void Dispose()
         {
-            Dispose(true);
+            GC.SuppressFinalize(this);
+            //Dispose(true);
         }
 
         ~DisposableList()
@@ -64,11 +63,11 @@ namespace MSBackupPipe.Common
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!mDisposed)
+            if (!_mDisposed)
             {
                 if (disposing)
                 {
-                    foreach (T t in this)
+                    foreach (var t in this)
                     {
                         t.Dispose();
                     }
@@ -77,7 +76,7 @@ namespace MSBackupPipe.Common
                 // There are no unmanaged resources to release, but
                 // if we add them, they need to be released here.
             }
-            mDisposed = true;
+            _mDisposed = true;
 
             // If it is available, make the call to the
             // base class's Dispose(Boolean) method

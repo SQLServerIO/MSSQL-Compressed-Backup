@@ -26,36 +26,35 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 
-using LZ4;
-
-namespace MSBackupPipe.StdPlugins
+namespace MSBackupPipe.StdPlugins.Transform
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "LZ4")]
     public class LZ4Transform : IBackupTransformer
     {
 
-        private static Dictionary<string, ParameterInfo> mBackupParamSchema;
-        private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MRestoreParamSchema;
         static LZ4Transform()
         {
-            mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mBackupParamSchema.Add("level", new ParameterInfo(false, false));
+            MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"level", new ParameterInfo(false, false)}
+            };
 
-            mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
+            MRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
         }
 
         #region IBackupTransformer Members
 
         public Stream GetBackupWriter(Dictionary<string, List<string>> config, Stream writeToStream)
         {
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
             Console.WriteLine("Compressor: LZ4");
 
-            return new LZ4.LZ4Stream(writeToStream, System.IO.Compression.CompressionMode.Compress, false, 1048576);
+            return new LZ4.LZ4Stream(writeToStream, System.IO.Compression.CompressionMode.Compress);
         }
 
         public string Name
@@ -65,11 +64,12 @@ namespace MSBackupPipe.StdPlugins
 
         public Stream GetRestoreReader(Dictionary<string, List<string>> config, Stream readFromStream)
         {
-            ParameterInfo.ValidateParams(mRestoreParamSchema, config);
+            ParameterInfo.ValidateParams(MRestoreParamSchema, config);
 
             Console.WriteLine("Compressor: LZ4");
 
-            return new LZ4.LZ4Stream(readFromStream, System.IO.Compression.CompressionMode.Decompress, false, 1048576);
+            return new LZ4.LZ4Stream(readFromStream, System.IO.Compression.CompressionMode.Decompress);
+            //return new LZ4.LZ4Stream(readFromStream, System.IO.Compression.CompressionMode.Decompress, false, 1048576);
         }
 
         public string CommandLineHelp

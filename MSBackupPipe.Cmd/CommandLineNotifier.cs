@@ -25,9 +25,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-
 using MSBackupPipe.Common;
 
 namespace MSBackupPipe.Cmd
@@ -35,16 +32,16 @@ namespace MSBackupPipe.Cmd
     //base console notifier reports on status of current opperation
     class CommandLineNotifier : IUpdateNotification
     {
-        private bool mIsBackup;
-        private DateTime mNextNotificationTimeUtc = DateTime.Today.AddDays(1);
-        private DateTime mStartTime = DateTime.UtcNow;
+        private readonly bool _mIsBackup;
+        private DateTime _mNextNotificationTimeUtc = DateTime.Today.AddDays(1);
+        private DateTime _mStartTime = DateTime.UtcNow;
 
-        private readonly TimeSpan mMinTimeForUpdate = TimeSpan.FromSeconds(1.2);
+        private readonly TimeSpan _mMinTimeForUpdate = TimeSpan.FromSeconds(1.2);
 
 
         public CommandLineNotifier(bool isBackup)
         {
-            mIsBackup = isBackup;
+            _mIsBackup = isBackup;
         }
 
         public void OnConnecting(string message)
@@ -56,32 +53,32 @@ namespace MSBackupPipe.Cmd
         {
             lock (this)
             {
-                Console.WriteLine(string.Format("{0} has started", mIsBackup ? "Backup" : "Restore"));
-                mNextNotificationTimeUtc = DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(10));
-                mStartTime = DateTime.UtcNow;
+                Console.WriteLine("{0} has started", _mIsBackup ? "Backup" : "Restore");
+                _mNextNotificationTimeUtc = DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(10));
+                _mStartTime = DateTime.UtcNow;
             }
         }
 
         public TimeSpan OnStatusUpdate(float percentComplete, long bytes)
         {
-            DateTime utcNow = DateTime.UtcNow;
+            var utcNow = DateTime.UtcNow;
 
             lock (this)
             {
 
-                if (mNextNotificationTimeUtc < utcNow && utcNow - mStartTime > mMinTimeForUpdate)
+                if (_mNextNotificationTimeUtc < utcNow && utcNow - _mStartTime > _mMinTimeForUpdate)
                 {
-                    string percent = string.Format("{0:0.00}%", percentComplete * 100.0);
+                    var percent = string.Format("{0:0.00}%", percentComplete * 100.0);
                     percent = new string(' ', 7 - percent.Length) + percent;
                     Console.Write(percent + " Complete. ");
                     ReturnByteScale(bytes);
-                    DateTime estEndTime = mStartTime;
+                    var estEndTime = _mStartTime;
                     if (percentComplete > 0)
                     {
-                        estEndTime = mStartTime.AddMilliseconds((utcNow - mStartTime).TotalMilliseconds / percentComplete);
+                        estEndTime = _mStartTime.AddMilliseconds((utcNow - _mStartTime).TotalMilliseconds / percentComplete);
                     }
                     //TODO: currently shows time remaining need to add a switch to show ether time remaining or estimated datetime to finish.
-                    if (1 == 1)
+                    if (true)
                     {
                         Console.WriteLine(" Time Remaining: {0}", string.Format("{0:dd\\:hh\\:mm\\:ss}", estEndTime.Subtract(utcNow).Duration()));
                     }
@@ -89,18 +86,15 @@ namespace MSBackupPipe.Cmd
                     {
                         Console.WriteLine(string.Format(" Estimated End: {0} ", estEndTime.ToLocalTime()));
                     }
-                    TimeSpan nextWait = CalculateNextNotification(utcNow - mStartTime);
-                    mNextNotificationTimeUtc = utcNow.Add(nextWait);
+                    var nextWait = CalculateNextNotification(utcNow - _mStartTime);
+                    _mNextNotificationTimeUtc = utcNow.Add(nextWait);
                     return nextWait;
                 }
-                if (((utcNow - mStartTime) - mMinTimeForUpdate) > utcNow - mNextNotificationTimeUtc)
+                if (((utcNow - _mStartTime) - _mMinTimeForUpdate) > utcNow - _mNextNotificationTimeUtc)
                 {
-                    return mMinTimeForUpdate;
+                    return _mMinTimeForUpdate;
                 }
-                else
-                {
-                    return (utcNow - mNextNotificationTimeUtc);
-                }
+                return (utcNow - _mNextNotificationTimeUtc);
             }
         }
 
@@ -110,8 +104,8 @@ namespace MSBackupPipe.Cmd
         /// <param name="bytesRead">the total amount of bytes read</param>
         private static void ReturnByteScale(long bytesRead)
         {
-            string bytesCompleted = "";
-            string bytesMeasure = "";
+            string bytesCompleted;
+            string bytesMeasure;
 
             if(bytesRead <= 0)
             bytesRead = 1;
@@ -181,15 +175,12 @@ namespace MSBackupPipe.Cmd
             {
                 return TimeSpan.FromSeconds(1.2);
             }
-            else
+            if ((elapsedTime.TotalSeconds * 0.4) > 60)
             {
-                if ((elapsedTime.TotalSeconds * 0.4) > 60)
-                {
-                    return TimeSpan.FromSeconds(60);
-                }
-                double secondsDelay = elapsedTime.TotalSeconds * 0.4;
-                return TimeSpan.FromSeconds(secondsDelay);
+                return TimeSpan.FromSeconds(60);
             }
+            var secondsDelay = elapsedTime.TotalSeconds * 0.4;
+            return TimeSpan.FromSeconds(secondsDelay);
         }
     }
 }

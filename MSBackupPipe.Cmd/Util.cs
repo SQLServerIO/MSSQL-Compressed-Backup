@@ -25,8 +25,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MSBackupPipe.Cmd
 {
@@ -48,14 +46,14 @@ namespace MSBackupPipe.Cmd
 #if DEBUG
 //            if (e.Message.IndexOf("-2139684860", StringComparison.OrdinalIgnoreCase) <= 0)
 //            {
-                Console.WriteLine(e.GetType().FullName);
-                Console.WriteLine();
-                Console.WriteLine(e.StackTrace);
-                Console.WriteLine();
-                if (e.InnerException != null)
-                {
-                    WriteError(e.InnerException);
-                }
+            Console.WriteLine(e.GetType().FullName);
+            Console.WriteLine();
+            Console.WriteLine(e.StackTrace);
+            Console.WriteLine();
+            if (e.InnerException != null)
+            {
+                WriteError(e.InnerException);
+            }
 //            }
 #endif
             //track error messages thrown from VDI and give some kind of guideance
@@ -64,7 +62,7 @@ namespace MSBackupPipe.Cmd
             {
                 Console.WriteLine("Please validate sqlvdi.dll is registered properly.");
             }
-            if (e.Message.IndexOf("x80070003", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (e.Message.IndexOf("x80770003", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 Console.WriteLine("waiting for SQL Server to respond to backup/restore request, but did not receive any response.");
             }

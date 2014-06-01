@@ -26,10 +26,10 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.IO;
 using System.Reflection;
-using System.Diagnostics;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Data;
 using System.Data.SqlClient;
@@ -45,10 +45,6 @@ namespace MSBackupPipe.Cmd
     {
         static int Main(string[] args)
         {
-
-#if DEBUG
-//Debugger.Launch();
-#endif
             //TODO: add pause on complete switch to command line
             //TODO: restore on top of an existing database? no error message
             //TODO: package version number does not match assembly's version number.
@@ -65,346 +61,327 @@ namespace MSBackupPipe.Cmd
                 //anything that would be considered a filter
                 //database components are the VDI commands and data stream from the backup or restore operation
                 //storage components are the last stage and consists of just disk targets at the moment.
-                Dictionary<string, Type> pipelineComponents = BackupPipeSystem.LoadTransformComponents();
-                Dictionary<string, Type> databaseComponents = BackupPipeSystem.LoadDatabaseComponents();
-                Dictionary<string, Type> storageComponents = BackupPipeSystem.LoadStorageComponents();
+                var pipelineComponents = BackupPipeSystem.LoadTransformComponents();
+                var databaseComponents = BackupPipeSystem.LoadDatabaseComponents();
+                var storageComponents = BackupPipeSystem.LoadStorageComponents();
 
                 if (args.Length == 0)
                 {
                     Console.WriteLine("For help, type \'msbp.exe help\'");
                     return 0;
                 }
-                else
+                switch (args[0].ToLowerInvariant())
                 {
-                    switch (args[0].ToLowerInvariant())
-                    {
-                        case "help":
-                            if (args.Length == 1)
-                            {
-                                PrintUsage();
-                            }
-                            else
-                            {
-                                switch (args[1].ToLowerInvariant())
-                                {
-                                    case "backup":
-                                        PrintBackupUsage();
-                                        break;
-                                    case "restore":
-                                        PrintRestoreUsage();
-                                        break;
-                                    case "restoreverifyonly":
-                                        PrintVerifyOnlyUsage();
-                                        break;
-                                    case "restoreheaderonly":
-                                        PrintRestoreHeaderOnlyUsage();
-                                        break;
-                                    case "restorefilelistonly":
-                                        PrintRestoreFilelistOnlyUsage();
-                                        break;
-                                    case "listplugins":
-                                        Console.WriteLine("Lists the plugins available.  Go on, try it.");
-                                        break;
-                                    case "helpplugin":
-                                        Console.WriteLine("Displays a plugin's help text. For example:");
-                                        Console.WriteLine("\tmsbp.exe helpplugin gzip");
-                                        break;
-                                    case "version":
-                                        Console.WriteLine("Displays the version number.");
-                                        break;
-                                    default:
-                                        Console.WriteLine(string.Format("Command doesn't exist: {0}", args[1]));
-                                        PrintUsage();
-                                        return -1;
-                                }
-                            }
-                            return 0;
-                        //start of backup command
-                        case "backup":
-                            {
-                                try
-                                {
-                                    ConfigPair storageConfig;
-                                    ConfigPair databaseConfig;
-                                    int commandType = 1;
-
-                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
-                                    //async notifier for percent complete report
-                                    CommandLineNotifier notifier = new CommandLineNotifier(true);
-
-                                    DateTime startTime = DateTime.UtcNow;
-                                    //configure and start backup command
-                                    List<string> devicenames;
-                                    BackupPipeSystem.Backup(databaseConfig, pipelineConfig, storageConfig, notifier, out devicenames);
-                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-
-                                    //this is so we can do a restore filelistonly and restore headeronly
-                                    WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
-
-                                    return 0;
-                                }
-                                catch (ParallelExecutionException ee)
-                                {
-                                    HandleExecutionExceptions(ee, true);
-                                    return -1;
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, true);
-                                    return -1;
-                                }
-                            }
-                        //start of restore command
-                        case "restore":
-                            {
-                                try
-                                {
-                                    ConfigPair storageConfig;
-                                    ConfigPair databaseConfig;
-
-                                    int commandType = 2;
-
-                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
-                                    //async notifier for percent complete report
-                                    CommandLineNotifier notifier = new CommandLineNotifier(false);
-
-                                    DateTime startTime = DateTime.UtcNow;
-                                    //configure and start restore command
-                                    BackupPipeSystem.Restore(storageConfig, pipelineConfig, databaseConfig, notifier);
-                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    return 0;
-                                }
-                                catch (ParallelExecutionException ee)
-                                {
-                                    HandleExecutionExceptions(ee, false);
-                                    return -1;
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-                            }
-                        case "restorefilelistonly":
-                            {
-                                DateTime startTime = DateTime.UtcNow;
-                                BinaryFormatter bFormat = new BinaryFormatter();
-                                //var hargs = CopySubArgs(args);
-                                var storageArg = args[1];
-                                ConfigPair storageConfig;
-                                FileStream fs;
-                                try
-                                {
-
-                                    if (storageArg.StartsWith("file://"))
-                                    {
-                                        Uri uri = new Uri(storageArg);
-                                        storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
-                                    }
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-                                try
-                                {
-                                    storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-                                String metaDataPath = storageConfig.Parameters["path"][0].ToString();
-                                if (!File.Exists(metaDataPath))
-                                {
-                                    metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
-                                }
-                                try
-                                {
-                                    fs = new FileStream(metaDataPath, FileMode.Open);
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-
-                                try
-                                {
-                                    DataSet HeaderOnlyData = (DataSet)bFormat.Deserialize(fs);
-                                    DataTable table = HeaderOnlyData.Tables[1]; // Get the data table.
-                                    StringBuilder sb = new StringBuilder();
-                                    foreach (DataColumn column in table.Columns)
-                                    {
-                                        sb.Append(column);
-                                        sb.Append(",");
-                                    }
-                                    sb.Length -= 1;
-                                    sb.AppendLine();
-                                    foreach (DataRow row in table.Rows) // Loop over the rows.
-                                    {
-                                        foreach (var value in row.ItemArray)
-                                        {
-                                            sb.Append(value);
-                                            sb.Append(",");
-                                        }
-                                        sb.Length -= 1;
-                                        sb.AppendLine();
-                                    }
-
-                                    Console.WriteLine(sb.ToString());
-                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    return 0;
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-                            }
-                        case "restoreheaderonly":
-                            {
-                                DateTime startTime = DateTime.UtcNow;
-                                BinaryFormatter bFormat = new BinaryFormatter();
-                                //var hargs = CopySubArgs(args);
-                                var storageArg = args[1];
-                                ConfigPair storageConfig;
-                                FileStream fs;
-                                try
-                                {
-
-                                    if (storageArg.StartsWith("file://"))
-                                    {
-                                        Uri uri = new Uri(storageArg);
-                                        storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
-                                    }
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-                                try
-                                {
-                                    storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-
-                                String metaDataPath = storageConfig.Parameters["path"][0].ToString();
-                                try
-                                {
-                                    fs = new FileStream(metaDataPath, FileMode.Open);
-                                }
-                                catch
-                                {
-                                    try
-                                    {
-                                        metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
-                                        fs = new FileStream(metaDataPath, FileMode.Open);
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        HandleException(e, false);
-                                        return -1;
-                                    }
-                                }
-
-                                try
-                                {
-                                    DataSet HeaderOnlyData = (DataSet)bFormat.Deserialize(fs);
-                                    DataTable table = HeaderOnlyData.Tables[0]; // Get the data table.
-                                    StringBuilder sb = new StringBuilder();
-                                    foreach (DataColumn column in table.Columns)
-                                    {
-                                        sb.Append(column);
-                                        sb.Append(",");
-                                    }
-                                    sb.Length -= 1;
-                                    sb.AppendLine();
-                                    foreach (DataRow row in table.Rows) // Loop over the rows.
-                                    {
-                                        foreach (var value in row.ItemArray)
-                                        {
-                                            sb.Append(value);
-                                            sb.Append(",");
-                                        }
-                                        sb.Length -= 1;
-                                        sb.AppendLine();
-                                    }
-
-                                    Console.WriteLine(sb.ToString());
-                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    return 0;
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-                            }
-
-                        case "restoreverifyonly":
-                            {
-                                try
-                                {
-                                    ConfigPair storageConfig;
-                                    ConfigPair databaseConfig;
-
-                                    int commandType = 3;
-
-                                    List<ConfigPair> pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
-                                    //async notifier for percent complete report
-                                    CommandLineNotifier notifier = new CommandLineNotifier(false);
-
-                                    DateTime startTime = DateTime.UtcNow;
-                                    //configure and start restore command
-                                    BackupPipeSystem.Verify(storageConfig, pipelineConfig, databaseConfig, notifier);
-                                    Console.WriteLine(string.Format("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime)));
-                                    return 0;
-                                }
-                                catch (ParallelExecutionException ee)
-                                {
-                                    HandleExecutionExceptions(ee, false);
-                                    return -1;
-                                }
-                                catch (Exception e)
-                                {
-                                    HandleException(e, false);
-                                    return -1;
-                                }
-                            }
-
-                        case "listplugins":
-                            PrintPlugins(pipelineComponents, databaseComponents, storageComponents);
-                            return 0;
-                        case "helpplugin":
-                            if (args.Length < 2)
-                            {
-                                Console.WriteLine("Please give a plugin name, like msbp.exe helpplugin <plugin>");
-                                return -1;
-                            }
-                            else
-                            {
-                                return PrintPluginHelp(args[1], pipelineComponents, databaseComponents, storageComponents);
-                            }
-
-                        case "version":
-                            Version version = Assembly.GetEntryAssembly().GetName().Version;
-                            //ProcessorArchitecture arch = typeof(VirtualDeviceSet).Assembly.GetName().ProcessorArchitecture;
-                            Console.WriteLine(string.Format("v{0} 32+64 ({1:yyyy MMM dd})", version, (new DateTime(2000, 1, 1)).AddDays(version.Build)));
-                            return 0;
-                        default:
-                            Console.WriteLine(string.Format("Unknown command: {0}", args[0]));
-
+                    case "help":
+                        if (args.Length == 1)
+                        {
                             PrintUsage();
+                        }
+                        else
+                        {
+                            switch (args[1].ToLowerInvariant())
+                            {
+                                case "backup":
+                                    PrintBackupUsage();
+                                    break;
+                                case "restore":
+                                    PrintRestoreUsage();
+                                    break;
+                                case "restoreverifyonly":
+                                    PrintVerifyOnlyUsage();
+                                    break;
+                                case "restoreheaderonly":
+                                    PrintRestoreHeaderOnlyUsage();
+                                    break;
+                                case "restorefilelistonly":
+                                    PrintRestoreFilelistOnlyUsage();
+                                    break;
+                                case "listplugins":
+                                    Console.WriteLine("Lists the plugins available.  Go on, try it.");
+                                    break;
+                                case "helpplugin":
+                                    Console.WriteLine("Displays a plugin's help text. For example:");
+                                    Console.WriteLine("\tmsbp.exe helpplugin gzip");
+                                    break;
+                                case "version":
+                                    Console.WriteLine("Displays the version number.");
+                                    break;
+                                default:
+                                    Console.WriteLine("Command doesn't exist: {0}", args[1]);
+                                    PrintUsage();
+                                    return -1;
+                            }
+                        }
+                        return 0;
+                        //start of backup command
+                    case "backup":
+                    {
+                        try
+                        {
+                            ConfigPair storageConfig;
+                            ConfigPair databaseConfig;
+                            const int commandType = 1;
+
+                            var pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
+                            //async notifier for percent complete report
+                            var notifier = new CommandLineNotifier(true);
+
+                            var startTime = DateTime.UtcNow;
+                            //configure and start backup command
+                            List<string> devicenames;
+                            BackupPipeSystem.Backup(databaseConfig, pipelineConfig, storageConfig, notifier, out devicenames);
+                            Console.WriteLine("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime));
+
+                            //this is so we can do a restore filelistonly and restore headeronly
+                            WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
+
+                            return 0;
+                        }
+                        catch (ParallelExecutionException ee)
+                        {
+                            HandleExecutionExceptions(ee, true);
                             return -1;
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, true);
+                            return -1;
+                        }
                     }
+                        //start of restore command
+                    case "restore":
+                    {
+                        try
+                        {
+                            ConfigPair storageConfig;
+                            ConfigPair databaseConfig;
+
+                            const int commandType = 2;
+
+                            var pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
+                            //async notifier for percent complete report
+                            var notifier = new CommandLineNotifier(false);
+
+                            var startTime = DateTime.UtcNow;
+                            //configure and start restore command
+                            BackupPipeSystem.Restore(storageConfig, pipelineConfig, databaseConfig, notifier);
+                            Console.WriteLine("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime));
+                            return 0;
+                        }
+                        catch (ParallelExecutionException ee)
+                        {
+                            HandleExecutionExceptions(ee, false);
+                            return -1;
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+                    }
+                    case "restorefilelistonly":
+                    {
+                        var startTime = DateTime.UtcNow;
+                        var bFormat = new BinaryFormatter();
+                        //var hargs = CopySubArgs(args);
+                        var storageArg = args[1];
+                        ConfigPair storageConfig;
+                        try
+                        {
+
+                            if (storageArg.StartsWith("file://"))
+                            {
+                                var uri = new Uri(storageArg);
+                                storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+                        try
+                        {
+                            storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+                        var metaDataPath = storageConfig.Parameters["path"][0];
+                        if (!File.Exists(metaDataPath))
+                        {
+                            metaDataPath = storageConfig.Parameters["path"][0] + ".hfl";
+                        }
+
+                        try
+                        {
+                            using (var fs = new FileStream(metaDataPath, FileMode.Open))
+                            {
+                                using (var headerOnlyData = (DataSet) bFormat.Deserialize(fs))
+                                {
+                                    using (var table = headerOnlyData.Tables[1])
+                                    {
+                                        var sb = new StringBuilder();
+                                        foreach (DataColumn column in table.Columns)
+                                        {
+                                            sb.Append(column);
+                                            sb.Append(",");
+                                        }
+                                        sb.Length -= 1;
+                                        sb.AppendLine();
+                                        foreach (DataRow row in table.Rows) // Loop over the rows.
+                                        {
+                                            foreach (var value in row.ItemArray)
+                                            {
+                                                sb.Append(value);
+                                                sb.Append(",");
+                                            }
+                                            sb.Length -= 1;
+                                            sb.AppendLine();
+                                        }
+                                        Console.WriteLine(sb.ToString());
+                                    }
+                                }
+                                Console.WriteLine("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime));
+                            }
+                            return 0;
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+                    }
+                    case "restoreheaderonly":
+                    {
+                        var startTime = DateTime.UtcNow;
+                        var bFormat = new BinaryFormatter();
+                        //var hargs = CopySubArgs(args);
+                        var storageArg = args[1];
+                        ConfigPair storageConfig;
+                        try
+                        {
+                            if (storageArg.StartsWith("file://"))
+                            {
+                                var uri = new Uri(storageArg);
+                                storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+                        try
+                        {
+                            storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+
+                        var metaDataPath = storageConfig.Parameters["path"][0];
+                        if (!File.Exists(metaDataPath))
+                        {
+                            metaDataPath = storageConfig.Parameters["path"][0] + ".hfl";
+                        }
+
+                        try
+                        {
+                            using (var fs = new FileStream(metaDataPath, FileMode.Open))
+                            {
+                                using (var headerOnlyData = (DataSet) bFormat.Deserialize(fs))
+                                {
+                                    using (var table = headerOnlyData.Tables[0])
+                                    {
+                                        var sb = new StringBuilder();
+                                        foreach (DataColumn column in table.Columns)
+                                        {
+                                            sb.Append(column);
+                                            sb.Append(",");
+                                        }
+                                        sb.Length -= 1;
+                                        sb.AppendLine();
+                                        foreach (DataRow row in table.Rows) // Loop over the rows.
+                                        {
+                                            foreach (var value in row.ItemArray)
+                                            {
+                                                sb.Append(value);
+                                                sb.Append(",");
+                                            }
+                                            sb.Length -= 1;
+                                            sb.AppendLine();
+                                        }
+                                        Console.WriteLine(sb.ToString());
+                                    }
+                                    Console.WriteLine("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime));
+                                }
+                            }
+                            return 0;
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+                    }
+
+                    case "restoreverifyonly":
+                    {
+                        try
+                        {
+                            ConfigPair storageConfig;
+                            ConfigPair databaseConfig;
+
+                            const int commandType = 3;
+
+                            var pipelineConfig = ParseBackupOrRestoreArgs(CopySubArgs(args), commandType, pipelineComponents, databaseComponents, storageComponents, out databaseConfig, out storageConfig);
+                            //async notifier for percent complete report
+                            var notifier = new CommandLineNotifier(false);
+
+                            var startTime = DateTime.UtcNow;
+                            //configure and start restore command
+                            BackupPipeSystem.Verify(storageConfig, pipelineConfig, databaseConfig, notifier);
+                            Console.WriteLine("Completed Successfully. {0}", string.Format("{0:dd\\:hh\\:mm\\:ss\\.ff}", DateTime.UtcNow - startTime));
+                            return 0;
+                        }
+                        catch (ParallelExecutionException ee)
+                        {
+                            HandleExecutionExceptions(ee, false);
+                            return -1;
+                        }
+                        catch (Exception e)
+                        {
+                            HandleException(e, false);
+                            return -1;
+                        }
+                    }
+
+                    case "listplugins":
+                        PrintPlugins(pipelineComponents, databaseComponents, storageComponents);
+                        return 0;
+                    case "helpplugin":
+                        if (args.Length < 2)
+                        {
+                            Console.WriteLine("Please give a plugin name, like msbp.exe helpplugin <plugin>");
+                            return -1;
+                        }
+                        return PrintPluginHelp(args[1], pipelineComponents, databaseComponents, storageComponents);
+
+                    case "version":
+                        var version = Assembly.GetEntryAssembly().GetName().Version;
+                        //ProcessorArchitecture arch = typeof(VirtualDeviceSet).Assembly.GetName().ProcessorArchitecture;
+                        Console.WriteLine("v{0} 32+64 ({1:yyyy MMM dd})", version, (new DateTime(2000, 1, 1)).AddDays(version.Build));
+                        return 0;
+                    default:
+                        Console.WriteLine("Unknown command: {0}", args[0]);
+
+                        PrintUsage();
+                        return -1;
                 }
             }
 
@@ -413,7 +390,7 @@ namespace MSBackupPipe.Cmd
                 Util.WriteError(e);
                 //TODO: cut down on verbosity of error messages in release mode
 
-                Exception ie = e;
+                var ie = e;
                 while (ie.InnerException != null)
                 {
                     ie = ie.InnerException;
@@ -427,7 +404,7 @@ namespace MSBackupPipe.Cmd
             }
         }
 
-        private static void WriteHeaderFilelist(ConfigPair databaseConfig, ConfigPair storageConfig, List<string> devices)
+        private static void WriteHeaderFilelist(ConfigPair databaseConfig, ConfigPair storageConfig, IEnumerable<string> devices)
         {
             /*
             12 --2014 supported
@@ -456,40 +433,32 @@ namespace MSBackupPipe.Cmd
                 clusterNetworkName = databaseConfig.Parameters["ClusterNetworkName"][0];
             }
 
-            string serverConnectionName = clusterNetworkName == null ? "." : clusterNetworkName;
-            string dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
-            string connectionString = "";
+            var serverConnectionName = clusterNetworkName ?? ".";
+            var dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
+            string connectionString;
             if (databaseConfig.Parameters.ContainsKey("user"))
             {
-                if (databaseConfig.Parameters.ContainsKey("password"))
-                {
-                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), databaseConfig.Parameters["password"][0].ToString());
-                }
-                else
-                {
-                    connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0].ToString(), null);
-                }
+                connectionString = databaseConfig.Parameters.ContainsKey("password") ? string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0], databaseConfig.Parameters["password"][0]) : string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0], null);
             }
             else
             {
                 connectionString = string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
             }
 
-            SqlConnection cnn = new SqlConnection(connectionString);
-            cnn.Open();
-            string version = GetVersion(cnn);
-            int majorVersionNum = GetMajorVersionNumber(version);
-            cnn.Close();
+            int majorVersionNum;
+            using (var cnn = new SqlConnection(connectionString))
+            {
+                var version = GetVersion(cnn);
+                majorVersionNum = GetMajorVersionNumber(version);
+            }
 
-            StringBuilder fileListHeaderOnlyQuery = new StringBuilder();
+            var fileListHeaderOnlyQuery = new StringBuilder();
 
 
-            string queryCap =
-                                @")
+            const string queryCap = @")
 			            )
             );";
-            string headeronly =
-                    @"SELECT [name]            AS BackupName, 
+            const string headeronly = @"SELECT [name]            AS BackupName, 
                    [description]               AS BackupDescription, 
                    CASE 
                      WHEN [type] = 'D' THEN 1 
@@ -559,14 +528,14 @@ namespace MSBackupPipe.Cmd
                    END                         AS BackupSetDescription,
                    backup_set_uuid             AS BackupSetGUID";
 
-            string headeronly2008 = @", 
+            const string headeronly2008 = @", 
                    compressed_backup_size      AS CompressedBackupSize";
 
-            string headeronly2012 =@", 
+            const string headeronly2012 = @", 
                    compressed_backup_size      AS CompressedBackupSize, 
                    0                           AS Containment ";
 
-            string headeronlytail = @"
+            const string headeronlytail = @"
             FROM   msdb.dbo.backupset bs 
             INNER JOIN msdb.sys.database_recovery_status drs 
                     ON bs.family_guid = drs.family_guid 
@@ -589,8 +558,7 @@ namespace MSBackupPipe.Cmd
 				            physical_device_name in(";
 
 
-            string fileListOnly =
-                        @"SELECT 
+            const string fileListOnly = @"SELECT 
                             bf.logical_name           AS LogicalName,
                             bf.physical_name          AS PhysicalName, 
                             bf.file_type              AS [Type], 
@@ -612,10 +580,10 @@ namespace MSBackupPipe.Cmd
                             bf.is_readonly            AS IsReadOnly, 
                             bf.is_present             AS IsPresent";
 
-            string filelistonly2008 = @", 
+            const string filelistonly2008 = @", 
                             NULL                   AS TDEThumbprint ";
 
-            string filelistonlytail =@"
+            const string filelistonlytail = @"
                         FROM   
                             msdb.dbo.backupfile bf
                         left outer join
@@ -641,9 +609,9 @@ namespace MSBackupPipe.Cmd
 		                        where 
 				                        physical_device_name in(";
 
-            String metaDataPath = storageConfig.Parameters["path"][0].ToString() + ".hfl";
+            var metaDataPath = storageConfig.Parameters["path"][0] + ".hfl";
 
-            StringBuilder deviceList = new StringBuilder();
+            var deviceList = new StringBuilder();
 
             foreach (var d in devices)
             {
@@ -686,9 +654,7 @@ namespace MSBackupPipe.Cmd
             fileListHeaderOnlyQuery.Append(deviceList);
             fileListHeaderOnlyQuery.Append(queryCap);
 
-            DataSet headerFileList = new DataSet();
-
-            //SqlCommand mCmd = new SqlCommand();
+            var headerFileList = new DataSet();
 
             /*
              * we only support sql server 2005 and above for meta-data right now
@@ -696,66 +662,54 @@ namespace MSBackupPipe.Cmd
             //TODO: add support for 2000 and 7.0
             if (majorVersionNum > 8)
             {
-                using (SqlConnection mCnn = new SqlConnection(connectionString))
+                using (var mCnn = new SqlConnection(connectionString))
                 {
-                    SqlDataAdapter adapter = new SqlDataAdapter();
-                    adapter.SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn);
+                    var adapter = new SqlDataAdapter
+                    {
+                        SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn)
+                    };
                     mCnn.Open();
                     adapter.Fill(headerFileList);
                     adapter.Dispose();
                 }
 
-                using (FileStream fs = new FileStream(metaDataPath, FileMode.Create))
+                using (var fs = new FileStream(metaDataPath, FileMode.Create))
                 {
                     headerFileList.RemotingFormat = SerializationFormat.Binary;
-                    BinaryFormatter bFormat = new BinaryFormatter();
+                    var bFormat = new BinaryFormatter();
                     bFormat.Serialize(fs, headerFileList);
                 }
             }
+            headerFileList.Dispose();
         }
-
 
         private static void HandleExecutionExceptions(ParallelExecutionException ee, bool isBackup)
         {
-            int i = 1;
+            var i = 1;
 
-#if DEBUG
-            foreach (Exception e in ee.Exceptions)
+            foreach (var e in ee.Exceptions)
             {
                 Console.WriteLine("------------------------");
-                Console.WriteLine(string.Format("Exception #{0}", i));
+                Console.WriteLine("Exception #{0}", i);
                 Util.WriteError(e);
                 Console.WriteLine();
                 i++;
             }
-#else
-            foreach (Exception e in ee.Exceptions)
-            {
-                Console.WriteLine("------------------------");
-                Console.WriteLine(string.Format("Exception #{0}", i));
-                Util.WriteError(e);
-                Console.WriteLine();
-                i++;
-                break;
-            }
-#endif
 
             Console.WriteLine();
-            Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
+            Console.WriteLine("The {0} failed.", isBackup ? "backup" : "restore");
 #if DEBUG
             Console.WriteLine();
             Console.WriteLine("Hit Any Key To Continue:");
             Console.ReadKey();
 #endif
-
-
         }
 
         private static void HandleException(Exception e, bool isBackup)
         {
             Util.WriteError(e);
 
-            Exception ie = e;
+            var ie = e;
             while (ie.InnerException != null)
             {
                 ie = ie.InnerException;
@@ -766,7 +720,7 @@ namespace MSBackupPipe.Cmd
             }
 
             Console.WriteLine();
-            Console.WriteLine(string.Format("The {0} failed.", isBackup ? "backup" : "restore"));
+            Console.WriteLine("The {0} failed.", isBackup ? "backup" : "restore");
 
             PrintUsage();
 #if DEBUG
@@ -779,8 +733,8 @@ namespace MSBackupPipe.Cmd
 
         private static List<string> CopySubArgs(string[] args)
         {
-            List<string> result = new List<string>(args.Length - 2);
-            for (int i = 1; i < args.Length; i++)
+            var result = new List<string>(args.Length - 2);
+            for (var i = 1; i < args.Length; i++)
             {
                 result.Add(args[i]);
             }
@@ -797,7 +751,6 @@ namespace MSBackupPipe.Cmd
             string databaseArg;
             string storageArg;
 
-
             if (commandType == 1)
             {
                 databaseArg = args[0];
@@ -808,7 +761,6 @@ namespace MSBackupPipe.Cmd
                 databaseArg = args[args.Count - 1];
                 storageArg = args[0];
             }
-
 
             if (databaseArg.Contains("://"))
             {
@@ -829,41 +781,35 @@ namespace MSBackupPipe.Cmd
 
             if (storageArg.StartsWith("file://"))
             {
-                Uri uri = new Uri(storageArg);
+                var uri = new Uri(storageArg);
                 storageArg = string.Format("local(path={0})", uri.LocalPath.Replace(";", ";;"));
             }
 
             storageConfig = ConfigUtil.ParseComponentConfig(storageComponents, storageArg);
 
-            List<string> pipelineArgs = new List<string>();
-            for (int i = 1; i < args.Count - 1; i++)
+            var pipelineArgs = new List<string>();
+            for (var i = 1; i < args.Count - 1; i++)
             {
                 pipelineArgs.Add(args[i]);
             }
 
-            List<ConfigPair> pipeline = BuildPipelineFromString(pipelineArgs, pipelineComponents);
+            var pipeline = BuildPipelineFromString(pipelineArgs, pipelineComponents);
 
             return pipeline;
         }
 
         private static List<ConfigPair> BuildPipelineFromString(List<string> pipelineArgs, Dictionary<string, Type> pipelineComponents)
         {
-            for (int i = 0; i < pipelineArgs.Count; i++)
+            for (var i = 0; i < pipelineArgs.Count; i++)
             {
                 pipelineArgs[i] = pipelineArgs[i].Trim();
             }
 
-            List<ConfigPair> results = new List<ConfigPair>(pipelineArgs.Count);
-
-            foreach (string componentString in pipelineArgs)
-            {
-                ConfigPair config = ConfigUtil.ParseComponentConfig(pipelineComponents, componentString);
-                results.Add(config);
-            }
+            var results = new List<ConfigPair>(pipelineArgs.Count);
+            results.AddRange(pipelineArgs.Select(componentString => ConfigUtil.ParseComponentConfig(pipelineComponents, componentString)));
 
             return results;
         }
-
 
         private static void PrintUsage()
         {
@@ -941,9 +887,8 @@ namespace MSBackupPipe.Cmd
 
         private static void PrintComponents(Dictionary<string, Type> components)
         {
-            foreach (string key in components.Keys)
+            foreach (var db in (from key in components.Keys select components[key].GetConstructor(new Type[0]) into constructorInfo where constructorInfo != null select constructorInfo.Invoke(new object[0])).OfType<IBackupPlugin>())
             {
-                IBackupPlugin db = components[key].GetConstructor(new Type[0]).Invoke(new object[0]) as IBackupPlugin;
                 Console.WriteLine("\t" + db.Name);
             }
         }
@@ -958,15 +903,15 @@ namespace MSBackupPipe.Cmd
 
         private static void PrintPluginHelp(string pluginName, Dictionary<string, Type> components)
         {
-            if (components.ContainsKey(pluginName))
-            {
-                IBackupPlugin db = components[pluginName].GetConstructor(new Type[0]).Invoke(new object[0]) as IBackupPlugin;
-                Console.WriteLine(db.CommandLineHelp);
-            }
+            if (!components.ContainsKey(pluginName)) return;
+            var constructorInfo = components[pluginName].GetConstructor(new Type[0]);
+            if (constructorInfo == null) return;
+            var db = constructorInfo.Invoke(new object[0]) as IBackupPlugin;
+            if (db != null) Console.WriteLine(db.CommandLineHelp);
         }
         private static string GetVersion(SqlConnection cnn)
         {
-            using (SqlCommand cmd = new SqlCommand("SELECT @@version;", cnn))
+            using (var cmd = new SqlCommand("SELECT @@version;", cnn))
             {
                 return cmd.ExecuteScalar().ToString();
             }
@@ -979,13 +924,13 @@ namespace MSBackupPipe.Cmd
             // example string:
             // Microsoft SQL Server 2008 (SP1) - 10.0.2531.0 (Intel X86)   Mar 29 2009 10:27:29   Copyright (c) 1988-2008 Microsoft Corporation  Developer Edition on Windows NT 5.1 <X86> (Build 2600: Service Pack 3) 
 
-            int dashPos = version.IndexOf('-');
+            var dashPos = version.IndexOf('-');
             if (dashPos < 0)
             {
                 throw new ArgumentException(string.Format("unexpected version string: {0}", version));
             }
 
-            int dotPos = version.IndexOf('.', dashPos);
+            var dotPos = version.IndexOf('.', dashPos);
 
             if (dotPos < 0)
             {

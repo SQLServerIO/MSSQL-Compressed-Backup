@@ -26,7 +26,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 
 namespace MSBackupPipe.StdPlugins.Transform
@@ -35,16 +34,18 @@ namespace MSBackupPipe.StdPlugins.Transform
     {
         #region IBackupTransformer Members
 
-        private static Dictionary<string, ParameterInfo> mBackupParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
         static RateTransform()
         {
-            mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mBackupParamSchema.Add("ratemb", new ParameterInfo(false, true));
+            MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"ratemb", new ParameterInfo(false, true)}
+            };
         }
 
         public Stream GetBackupWriter(Dictionary<string, List<string>> config, Stream writeToStream)
         {
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
             double rateMb;
 
@@ -58,7 +59,7 @@ namespace MSBackupPipe.StdPlugins.Transform
                 throw new ArgumentException(string.Format("rate: Unable to parse the number: {0}", config["ratemb"][0]));
             }
 
-            Console.WriteLine(string.Format("Limiter: rate - ratemb = {0}", rateMb));
+            Console.WriteLine("Limiter: rate - ratemb = {0}", rateMb);
 
             return new RateLimitStream(writeToStream, rateMb);
         }
@@ -89,72 +90,72 @@ namespace MSBackupPipe.StdPlugins.Transform
 
         private class RateLimitStream : Stream
         {
-            private Stream mStream;
-            private double mRateMB;
-            private DateTime mNextStartTimeUtc;
-            private bool mDisposed;
+            private readonly Stream _mStream;
+            private readonly double _mRateMB;
+            private DateTime _mNextStartTimeUtc;
+            private bool _mDisposed;
 
             public RateLimitStream(Stream s, double rateMB)
             {
-                mStream = s;
-                mRateMB = rateMB;
-                mNextStartTimeUtc = DateTime.UtcNow;
+                _mStream = s;
+                _mRateMB = rateMB;
+                _mNextStartTimeUtc = DateTime.UtcNow;
             }
 
             public override bool CanRead
             {
-                get { return mStream.CanRead; }
+                get { return _mStream.CanRead; }
             }
 
             public override bool CanSeek
             {
-                get { return mStream.CanSeek; }
+                get { return _mStream.CanSeek; }
             }
 
             public override bool CanWrite
             {
-                get { return mStream.CanWrite; }
+                get { return _mStream.CanWrite; }
             }
 
             public override void Flush()
             {
-                mStream.Flush();
+                _mStream.Flush();
             }
 
             public override long Length
             {
-                get { return mStream.Length; }
+                get { return _mStream.Length; }
             }
 
             public override long Position
             {
                 get
                 {
-                    return mStream.Position;
+                    return _mStream.Position;
                 }
                 set
                 {
-                    mStream.Position = value;
+                    _mStream.Position = value;
                 }
             }
 
             private void Wait(int count)
             {
-                DateTime utcNow = DateTime.UtcNow;
-                while (mNextStartTimeUtc > utcNow)
+                var utcNow = DateTime.UtcNow;
+                while (_mNextStartTimeUtc > utcNow)
                 {
-                    System.Threading.Thread.Sleep(mNextStartTimeUtc - utcNow);
+                    System.Threading.Thread.Sleep(_mNextStartTimeUtc - utcNow);
 
                     utcNow = DateTime.UtcNow;
                 }
 
-                mNextStartTimeUtc = mNextStartTimeUtc.AddSeconds(((double)count) / mRateMB / (1024 * 1024));
+                _mNextStartTimeUtc = _mNextStartTimeUtc.AddSeconds(count / _mRateMB / (1024 * 1024));
 
                 // only allow a 0.5 second burst
-                DateTime minStartTime = DateTime.UtcNow.AddMilliseconds(-500);
-                if (mNextStartTimeUtc < minStartTime)
+                var minStartTime = DateTime.UtcNow.AddMilliseconds(-500);
+                if (_mNextStartTimeUtc < minStartTime)
                 {
-                    mNextStartTimeUtc = minStartTime;
+                    _mNextStartTimeUtc = minStartTime;
                 }
             }
 
@@ -162,39 +163,39 @@ namespace MSBackupPipe.StdPlugins.Transform
             {
                 Wait(count);
 
-                return mStream.Read(buffer, offset, count);
+                return _mStream.Read(buffer, offset, count);
             }
 
             public override long Seek(long offset, SeekOrigin origin)
             {
-                return mStream.Seek(offset, origin);
+                return _mStream.Seek(offset, origin);
             }
 
             public override void SetLength(long value)
             {
-                mStream.SetLength(value);
+                _mStream.SetLength(value);
             }
 
             public override void Write(byte[] buffer, int offset, int count)
             {
                 Wait(count);
-                mStream.Write(buffer, offset, count);
+                _mStream.Write(buffer, offset, count);
             }
 
             protected override void Dispose(bool disposing)
             {
-                if (!mDisposed)
+                if (!_mDisposed)
                 {
                     if (disposing)
                     {
-                        mStream.Dispose();
+                        _mStream.Dispose();
                         // dispose of managed resources
                     }
 
                     // There are no unmanaged resources to release, but
                     // if we add them, they need to be released here.
                 }
-                mDisposed = true;
+                _mDisposed = true;
 
                 // If it is available, make the call to the
                 // base class's Dispose(Boolean) method

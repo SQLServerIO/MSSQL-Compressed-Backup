@@ -20,7 +20,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using MSBackupPipe.Common;
 
 namespace MSBackupPipe.Cmd
@@ -29,12 +28,12 @@ namespace MSBackupPipe.Cmd
     {
         public static ConfigPair ParseComponentConfig(Dictionary<string, Type> pipelineComponents, string componentString)
         {
-            ConfigPair config = new ConfigPair();
+            var config = new ConfigPair();
 
             string componentName;
             string configString;
 
-            int pPos = componentString.IndexOf('(');
+            var pPos = componentString.IndexOf('(');
             if (pPos < 0)
             {
                 componentName = componentString;
@@ -68,17 +67,17 @@ namespace MSBackupPipe.Cmd
 
         private static Dictionary<string, List<string>> ParseArrayConfig(string s)
         {
-            IEnumerable<string> pairs = SplitNameValues(s);
+            var pairs = SplitNameValues(s);
 
-            Dictionary<string, List<string>> result = new Dictionary<string, List<string>>(StringComparer.InvariantCultureIgnoreCase);
+            var result = new Dictionary<string, List<string>>(StringComparer.InvariantCultureIgnoreCase);
 
-            foreach (string pair in pairs)
+            foreach (var pair in pairs)
             {
                 if (!string.IsNullOrEmpty(pair))
                 {
-                    string[] nameValue = pair.Split(new char[] { '=' }, 2);
-                    string name = nameValue[0].Trim();
-                    string val = nameValue.Length > 1 ? nameValue[1].Trim() : null;
+                    var nameValue = pair.Split(new[] { '=' }, 2);
+                    var name = nameValue[0].Trim();
+                    var val = nameValue.Length > 1 ? nameValue[1].Trim() : null;
 
                     name = name.Replace(";;", ";");
 
@@ -93,7 +92,7 @@ namespace MSBackupPipe.Cmd
                     }
                     else
                     {
-                        result.Add(name, new List<string>(new string[] { val }));
+                        result.Add(name, new List<string>(new[] { val }));
                     }
                 }
             }
@@ -106,11 +105,11 @@ namespace MSBackupPipe.Cmd
         {
             // separated by semicolons ";", however ignores ";;"
 
-            int pos = 0;
+            var pos = 0;
 
             while (true)
             {
-                int nextSemiPos = FindNextSemiPos(s, pos);
+                var nextSemiPos = FindNextSemiPos(s, pos);
                 if (nextSemiPos < 0)
                 {
                     if (s.Length > pos)
@@ -141,7 +140,7 @@ namespace MSBackupPipe.Cmd
                 return -1;
             }
 
-            int nextSemi = s.IndexOf(';', startIndex);
+            var nextSemi = s.IndexOf(';', startIndex);
             if (nextSemi < 0)
             {
                 return -1;
