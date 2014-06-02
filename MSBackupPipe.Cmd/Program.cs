@@ -406,6 +406,7 @@ namespace MSBackupPipe.Cmd
 
             foreach (var e in ee.Exceptions)
             {
+                Console.WriteLine();
                 Console.WriteLine("------------------------");
                 Console.WriteLine("Exception #{0}", i);
                 Util.WriteError(e);

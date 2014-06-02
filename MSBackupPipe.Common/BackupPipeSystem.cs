@@ -271,7 +271,7 @@ namespace MSBackupPipe.Common
             }
         }
 
-        private static IEnumerable<Stream> CreatePipeline(List<ConfigPair> pipelineConfig, IList<Stream> fileStreams, bool isBackup, IStreamNotification streamNotification, long estimatedTotalBytes)
+        private static IEnumerable<Stream> CreatePipeline(IList<ConfigPair> pipelineConfig, ICollection<Stream> fileStreams, bool isBackup, IStreamNotification streamNotification, long estimatedTotalBytes)
         {
             streamNotification.EstimatedBytes = estimatedTotalBytes;
 
@@ -334,44 +334,34 @@ namespace MSBackupPipe.Common
             return result;
         }
 
-        private static void FindPlugins(Assembly dll, Dictionary<string, Type> result, string interfaceName)
+        private static void FindPlugins(Assembly dll, IDictionary<string, Type> result, string interfaceName)
         {
             foreach (var t in dll.GetTypes())
             {
                 try
                 {
-                    if (t.IsPublic)
+                    if (!t.IsPublic) continue;
+                    if ((t.Attributes & TypeAttributes.Abstract) == TypeAttributes.Abstract) continue;
+                    if (t.GetInterface(interfaceName) == null) continue;
+                    var constructorInfo = t.GetConstructor(new Type[0]);
+                    if (constructorInfo == null) continue;
+                    var o = constructorInfo.Invoke(new object[0]);
+
+                    var test = o as IBackupPlugin;
+
+                    if (test == null) continue;
+                    var name = test.Name.ToLowerInvariant();
+
+                    if (name.Contains("|") || name.Contains("("))
                     {
-                        if ((t.Attributes & TypeAttributes.Abstract) != TypeAttributes.Abstract)
-                        {
-                            if (t.GetInterface(interfaceName) != null)
-                            {
-                                var constructorInfo = t.GetConstructor(new Type[0]);
-                                if (constructorInfo != null)
-                                {
-                                    var o = constructorInfo.Invoke(new object[0]);
-
-                                    var test = o as IBackupPlugin;
-
-                                    if (test != null)
-                                    {
-                                        var name = test.Name.ToLowerInvariant();
-
-                                        if (name.Contains("|") || name.Contains("("))
-                                        {
-                                            throw new ArgumentException(string.Format("The name of the plugin, {0}, cannot contain these characters: |, (", name));
-                                        }
-
-                                        if (result.ContainsKey(name))
-                                        {
-                                            throw new ArgumentException(string.Format("plugin found twice: {0}", name));
-                                        }
-                                        result.Add(name, t);
-                                    }
-                                }
-                            }
-                        }
+                        throw new ArgumentException(string.Format("The name of the plugin, {0}, cannot contain these characters: |, (", name));
                     }
+
+                    if (result.ContainsKey(name))
+                    {
+                        throw new ArgumentException(string.Format("plugin found twice: {0}", name));
+                    }
+                    result.Add(name, t);
                 }
                 catch (Exception e)
                 {

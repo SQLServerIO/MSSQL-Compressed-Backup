@@ -106,7 +106,7 @@ namespace MSBackupPipe.Cmd
             string bytesMeasure;
 
             if(bytesRead <= 0)
-            bytesRead = 1;
+                bytesRead = 1;
 
             if ((bytesRead / 1024.0) > 1)
             {
@@ -147,7 +147,7 @@ namespace MSBackupPipe.Cmd
             {
                 bytesCompleted = new string(' ', 6 - bytesCompleted.Length) + bytesCompleted;
             }
-            else
+            else if (bytesCompleted.Length >= 1)
             {
                 bytesCompleted = new string(' ', 3) + bytesCompleted;
             }

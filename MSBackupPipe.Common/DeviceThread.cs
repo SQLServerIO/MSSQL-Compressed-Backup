@@ -149,7 +149,6 @@ namespace MSBackupPipe.Common
         public void Dispose()
         {
             GC.SuppressFinalize(this);
-            //Dispose(true);
         }
 
         ~DeviceThread()
