@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReleasePackaging", "Release
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MSBackupPipe.Common", "MSBackupPipe.Common\MSBackupPipe.Common.csproj", "{486443C8-A843-409A-8A23-EAC5325A5171}"
 EndProject
+Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "MSSQLCompressedBackupExtendedStoredProcedures", "MSSQLCompressedBackupExtendedStoredProcedures\MSSQLCompressedBackupExtendedStoredProcedures\MSSQLCompressedBackupExtendedStoredProcedures.sqlproj", "{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -68,7 +70,7 @@ Global
 		{9C8081AF-4FB8-4A85-B205-C385BCC36E01}.Release|Mixed Platforms.Build.0 = Release|x64
 		{9C8081AF-4FB8-4A85-B205-C385BCC36E01}.Release|Win32.ActiveCfg = Release|x86
 		{9C8081AF-4FB8-4A85-B205-C385BCC36E01}.Release|Win32.Build.0 = Release|x86
-		{9C8081AF-4FB8-4A85-B205-C385BCC36E01}.Release|x64.ActiveCfg = Release|x64
+		{9C8081AF-4FB8-4A85-B205-C385BCC36E01}.Release|x64.ActiveCfg = Release|x86
 		{486443C8-A843-409A-8A23-EAC5325A5171}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{486443C8-A843-409A-8A23-EAC5325A5171}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{486443C8-A843-409A-8A23-EAC5325A5171}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
@@ -85,6 +87,22 @@ Global
 		{486443C8-A843-409A-8A23-EAC5325A5171}.Release|Win32.Build.0 = Release|Any CPU
 		{486443C8-A843-409A-8A23-EAC5325A5171}.Release|x64.ActiveCfg = Release|Any CPU
 		{486443C8-A843-409A-8A23-EAC5325A5171}.Release|x64.Build.0 = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|Mixed Platforms.Deploy.0 = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|Win32.ActiveCfg = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|Mixed Platforms.Deploy.0 = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|Win32.ActiveCfg = Release|Any CPU
+		{F5CF5D05-8FFF-42FB-8E75-8901D46C9219}.Release|x64.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
