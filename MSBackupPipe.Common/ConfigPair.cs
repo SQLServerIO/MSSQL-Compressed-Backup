@@ -28,7 +28,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace MSBackupPipe.Common
 {

@@ -26,88 +26,94 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Data;
 using System.Data.SqlClient;
 
 //Additional includes other than default dot net framework should go here.
+using System.Linq;
 
 namespace MSBackupPipe.StdPlugins.Database
 {
     public class DatabaseSource : IBackupDatabase
     {
-        private static Dictionary<string, ParameterInfo> mBackupParamSchema;
-        private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
-        private static Dictionary<string, ParameterInfo> mVerifyParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MRestoreParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MVerifyParamSchema;
 
         static DatabaseSource()
         {
-            mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mBackupParamSchema.Add("database", new ParameterInfo(false, true));
-            mBackupParamSchema.Add("file", new ParameterInfo(true, false));
-            mBackupParamSchema.Add("filegroup", new ParameterInfo(true, false));
-            mBackupParamSchema.Add("instancename", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("clusternetworkname", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("backuptype", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("user", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("password", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("READ_WRITE_FILEGROUPS", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("COPY_ONLY", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("CHECKSUM", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("NO_CHECKSUM", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("STOP_ON_ERROR", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("CONTINUE_AFTER_ERROR", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("BUFFERCOUNT", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("MAXTRANSFERSIZE", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("BLOCKSIZE", new ParameterInfo(false, false));
+            MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"database", new ParameterInfo(false, true)},
+                {"file", new ParameterInfo(true, false)},
+                {"filegroup", new ParameterInfo(true, false)},
+                {"instancename", new ParameterInfo(false, false)},
+                {"clusternetworkname", new ParameterInfo(false, false)},
+                {"backuptype", new ParameterInfo(false, false)},
+                {"user", new ParameterInfo(false, false)},
+                {"password", new ParameterInfo(false, false)},
+                {"READ_WRITE_FILEGROUPS", new ParameterInfo(false, false)},
+                {"COPY_ONLY", new ParameterInfo(false, false)},
+                {"CHECKSUM", new ParameterInfo(false, false)},
+                {"NO_CHECKSUM", new ParameterInfo(false, false)},
+                {"STOP_ON_ERROR", new ParameterInfo(false, false)},
+                {"CONTINUE_AFTER_ERROR", new ParameterInfo(false, false)},
+                {"BUFFERCOUNT", new ParameterInfo(false, false)},
+                {"MAXTRANSFERSIZE", new ParameterInfo(false, false)},
+                {"BLOCKSIZE", new ParameterInfo(false, false)}
+            };
             //TODO: enable switch to turn stats reporting on or off
             //mBackupParamSchema.Add("STATS", new ParameterInfo(false, false));
 
-            mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mRestoreParamSchema.Add("database", new ParameterInfo(false, true));
-            mRestoreParamSchema.Add("instancename", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("ClusterNetworkName", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("restoretype", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("user", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("password", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("CHECKSUM", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("NO_CHECKSUM", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("STOP_ON_ERROR", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("CONTINUE_AFTER_ERROR", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("KEEP_REPLICATION", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("ENABLE_BROKER", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("ERROR_BROKER_CONVERSATIONS", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("NEW_BROKER", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("RECOVERY", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("NORECOVERY", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("STANDBY", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("REPLACE", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("RESTART", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("RESTRICTED_USER", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("STOPAT", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("STOPATMARK", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("STOPBEFOREMARK", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("PARTIAL", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("READ_WRITE_FILEGROUPS", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("FILE", new ParameterInfo(true, false));
-            mRestoreParamSchema.Add("FILEGROUP", new ParameterInfo(true, false));
-            mRestoreParamSchema.Add("LOADHISTORY", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("MOVE", new ParameterInfo(true, false));
-            mRestoreParamSchema.Add("BUFFERCOUNT", new ParameterInfo(false, false));
-            mRestoreParamSchema.Add("MAXTRANSFERSIZE", new ParameterInfo(false, false));
+            MRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"database", new ParameterInfo(false, true)},
+                {"instancename", new ParameterInfo(false, false)},
+                {"ClusterNetworkName", new ParameterInfo(false, false)},
+                {"restoretype", new ParameterInfo(false, false)},
+                {"user", new ParameterInfo(false, false)},
+                {"password", new ParameterInfo(false, false)},
+                {"CHECKSUM", new ParameterInfo(false, false)},
+                {"NO_CHECKSUM", new ParameterInfo(false, false)},
+                {"STOP_ON_ERROR", new ParameterInfo(false, false)},
+                {"CONTINUE_AFTER_ERROR", new ParameterInfo(false, false)},
+                {"KEEP_REPLICATION", new ParameterInfo(false, false)},
+                {"ENABLE_BROKER", new ParameterInfo(false, false)},
+                {"ERROR_BROKER_CONVERSATIONS", new ParameterInfo(false, false)},
+                {"NEW_BROKER", new ParameterInfo(false, false)},
+                {"RECOVERY", new ParameterInfo(false, false)},
+                {"NORECOVERY", new ParameterInfo(false, false)},
+                {"STANDBY", new ParameterInfo(false, false)},
+                {"REPLACE", new ParameterInfo(false, false)},
+                {"RESTART", new ParameterInfo(false, false)},
+                {"RESTRICTED_USER", new ParameterInfo(false, false)},
+                {"STOPAT", new ParameterInfo(false, false)},
+                {"STOPATMARK", new ParameterInfo(false, false)},
+                {"STOPBEFOREMARK", new ParameterInfo(false, false)},
+                {"PARTIAL", new ParameterInfo(false, false)},
+                {"READ_WRITE_FILEGROUPS", new ParameterInfo(false, false)},
+                {"FILE", new ParameterInfo(true, false)},
+                {"FILEGROUP", new ParameterInfo(true, false)},
+                {"LOADHISTORY", new ParameterInfo(false, false)},
+                {"MOVE", new ParameterInfo(true, false)},
+                {"BUFFERCOUNT", new ParameterInfo(false, false)},
+                {"MAXTRANSFERSIZE", new ParameterInfo(false, false)}
+            };
 
-            mVerifyParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mVerifyParamSchema.Add("database", new ParameterInfo(false, true));
-            mVerifyParamSchema.Add("instancename", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("ClusterNetworkName", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("restoretype", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("user", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("password", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("CHECKSUM", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("NO_CHECKSUM", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("STOP_ON_ERROR", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("CONTINUE_AFTER_ERROR", new ParameterInfo(false, false));
-            mVerifyParamSchema.Add("LOADHISTORY", new ParameterInfo(false, false));
+            MVerifyParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"database", new ParameterInfo(false, true)},
+                {"instancename", new ParameterInfo(false, false)},
+                {"ClusterNetworkName", new ParameterInfo(false, false)},
+                {"restoretype", new ParameterInfo(false, false)},
+                {"user", new ParameterInfo(false, false)},
+                {"password", new ParameterInfo(false, false)},
+                {"CHECKSUM", new ParameterInfo(false, false)},
+                {"NO_CHECKSUM", new ParameterInfo(false, false)},
+                {"STOP_ON_ERROR", new ParameterInfo(false, false)},
+                {"CONTINUE_AFTER_ERROR", new ParameterInfo(false, false)},
+                {"LOADHISTORY", new ParameterInfo(false, false)}
+            };
         }
 
         #region IBackupDatabase Members
@@ -119,15 +125,13 @@ namespace MSBackupPipe.StdPlugins.Database
 
         public void ConfigureBackupCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
         {
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
-            SqlParameter param;
-            param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255);
-            param.Value = config["database"][0];
+            var param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255) {Value = config["database"][0]};
             cmd.Parameters.Add(param);
 
             // default values:
-            BackupType backupType = BackupType.Full;
+            var backupType = BackupType.Full;
 
             if (config.ContainsKey("backuptype"))
             {
@@ -147,8 +151,8 @@ namespace MSBackupPipe.StdPlugins.Database
                 }
             }
 
-            List<string> withOptions = new List<string>();
-            List<string> filegroupOptions = new List<string>();
+            var withOptions = new List<string>();
+            var filegroupOptions = new List<string>();
 
             if (config.ContainsKey("READ_WRITE_FILEGROUPS"))
             {
@@ -157,12 +161,11 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("FILE"))
             {
-                int i = 0;
-                foreach (string file in config["FILE"])
+                var i = 0;
+                foreach (var file in config["FILE"])
                 {
                     filegroupOptions.Add(string.Format("FILE=@file{0}", i));
-                    param = new SqlParameter(string.Format("@file{0}", i), SqlDbType.NVarChar, 2000);
-                    param.Value = file;
+                    param = new SqlParameter(string.Format("@file{0}", i), SqlDbType.NVarChar, 2000) {Value = file};
                     cmd.Parameters.Add(param);
 
                     i++;
@@ -171,12 +174,14 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("FILEGROUP"))
             {
-                int i = 0;
-                foreach (string filegroup in config["FILEGROUP"])
+                var i = 0;
+                foreach (var filegroup in config["FILEGROUP"])
                 {
                     filegroupOptions.Add(string.Format("FILEGROUP=@filegroup{0}", i));
-                    param = new SqlParameter(string.Format("@filegroup{0}", i), SqlDbType.NVarChar, 2000);
-                    param.Value = filegroup;
+                    param = new SqlParameter(string.Format("@filegroup{0}", i), SqlDbType.NVarChar, 2000)
+                    {
+                        Value = filegroup
+                    };
                     cmd.Parameters.Add(param);
 
                     i++;
@@ -210,12 +215,12 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("BUFFERCOUNT"))
             {
-                List<string> valList = config["BUFFERCOUNT"];
+                var valList = config["BUFFERCOUNT"];
                 if (valList.Count != 1)
                 {
                     throw new ArgumentException("BUFFERCOUNT parameter must have a value.");
                 }
-                string val = valList[0];
+                var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
@@ -226,12 +231,12 @@ namespace MSBackupPipe.StdPlugins.Database
             //TODO: add validator for maxtransfersize other than is number
             if (config.ContainsKey("MAXTRANSFERSIZE"))
             {
-                List<string> valList = config["MAXTRANSFERSIZE"];
+                var valList = config["MAXTRANSFERSIZE"];
                 if (valList.Count != 1)
                 {
                     throw new ArgumentException("MAXTRANSFERSIZE parameter must have a value.");
                 }
-                string val = valList[0];
+                var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
@@ -242,12 +247,12 @@ namespace MSBackupPipe.StdPlugins.Database
             //TODO: add validator for blocksize other than is number
             if (config.ContainsKey("BLOCKSIZE"))
             {
-                List<string> valList = config["BLOCKSIZE"];
+                var valList = config["BLOCKSIZE"];
                 if (valList.Count != 1)
                 {
                     throw new ArgumentException("BlockSize parameter must have a value.");
                 }
-                string val = valList[0];
+                var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
@@ -259,12 +264,12 @@ namespace MSBackupPipe.StdPlugins.Database
             //TODO: add validator for STATS other than is number
             if (config.ContainsKey("STATS"))
             {
-                List<string> valList = config["STATS"];
+                var valList = config["STATS"];
                 if (valList.Count != 1)
                 {
                     throw new ArgumentException("STATS parameter must have a value.");
                 }
-                string val = valList[0];
+                var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
@@ -281,7 +286,7 @@ namespace MSBackupPipe.StdPlugins.Database
             string filegroupClause = null;
             if (filegroupOptions.Count > 0)
             {
-                for (int i = 0; i < filegroupOptions.Count; i++)
+                for (var i = 0; i < filegroupOptions.Count; i++)
                 {
                     if (i > 0)
                     {
@@ -296,7 +301,7 @@ namespace MSBackupPipe.StdPlugins.Database
             if (withOptions.Count > 0)
             {
                 withClause = " WITH ";
-                for (int i = 0; i < withOptions.Count; i++)
+                for (var i = 0; i < withOptions.Count; i++)
                 {
                     if (i > 0)
                     {
@@ -306,30 +311,25 @@ namespace MSBackupPipe.StdPlugins.Database
                 }
             }
 
-            string databaseOrLog = backupType == BackupType.Log ? "LOG" : "DATABASE";
+            var databaseOrLog = backupType == BackupType.Log ? "LOG" : "DATABASE";
 
             cmd.CommandType = CommandType.Text;
 
-            List<string> tempDevs = new List<string>(deviceNames);
-            List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
-            {
-                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
-            });
+            var tempDevs = new List<string>(deviceNames);
+            var devSql = tempDevs.ConvertAll(devName => string.Format("VIRTUAL_DEVICE='{0}'", devName));
 
             cmd.CommandText = string.Format("BACKUP {0} @databasename {1}TO {2}{3};", databaseOrLog, filegroupClause, string.Join(",", devSql.ToArray()), withClause);
         }
 
         public void ConfigureRestoreCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
         {
-            ParameterInfo.ValidateParams(mRestoreParamSchema, config);
+            ParameterInfo.ValidateParams(MRestoreParamSchema, config);
 
-            SqlParameter param;
-            param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255);
-            param.Value = config["database"][0];
+            var param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255) {Value = config["database"][0]};
             cmd.Parameters.Add(param);
 
             // default values:
-            RestoreType restoreType = RestoreType.Database;
+            var restoreType = RestoreType.Database;
 
             if (config.ContainsKey("restoretype"))
             {
@@ -346,8 +346,8 @@ namespace MSBackupPipe.StdPlugins.Database
                 }
             }
 
-            List<string> withOptions = new List<string>();
-            List<string> filegroupOptions = new List<string>();
+            var withOptions = new List<string>();
+            var filegroupOptions = new List<string>();
 
             if (config.ContainsKey("CHECKSUM"))
             {
@@ -401,7 +401,7 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("STANDBY"))
             {
-                string standbyFile = config["STANDBY"][0].Trim();
+                var standbyFile = config["STANDBY"][0].Trim();
                 if (standbyFile.StartsWith("'"))
                 {
                     standbyFile = standbyFile.Substring(1);
@@ -440,24 +440,21 @@ namespace MSBackupPipe.StdPlugins.Database
                     throw new ArgumentException(string.Format("db: .Net was unable determine the date and time of the stopat parameter: {0}", config["STOPAT"][0]));
                 }
                 withOptions.Add("STOPAT=@stopat");
-                param = new SqlParameter("@stopat", SqlDbType.DateTime);
-                param.Value = stopAtDateTime;
+                param = new SqlParameter("@stopat", SqlDbType.DateTime) {Value = stopAtDateTime};
                 cmd.Parameters.Add(param);
             }
 
             if (config.ContainsKey("STOPATMARK"))
             {
                 withOptions.Add("STOPATMARK=@stopatmark");
-                param = new SqlParameter("@stopatmark", SqlDbType.VarChar);
-                param.Value = config["STOPATMARK"][0];
+                param = new SqlParameter("@stopatmark", SqlDbType.VarChar) {Value = config["STOPATMARK"][0]};
                 cmd.Parameters.Add(param);
             }
 
             if (config.ContainsKey("STOPBEFOREMARK"))
             {
                 withOptions.Add("STOPBEFOREMARK=@stopbeforemark");
-                param = new SqlParameter("@stopbeforemark", SqlDbType.VarChar);
-                param.Value = config["STOPBEFOREMARK"][0];
+                param = new SqlParameter("@stopbeforemark", SqlDbType.VarChar) {Value = config["STOPBEFOREMARK"][0]};
                 cmd.Parameters.Add(param);
             }
 
@@ -478,12 +475,11 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("FILE"))
             {
-                int i = 0;
-                foreach (string file in config["FILE"])
+                var i = 0;
+                foreach (var file in config["FILE"])
                 {
                     filegroupOptions.Add(string.Format("FILE=@file{0}", i));
-                    param = new SqlParameter(string.Format("@file{0}", i), SqlDbType.NVarChar, 2000);
-                    param.Value = file;
+                    param = new SqlParameter(string.Format("@file{0}", i), SqlDbType.NVarChar, 2000) {Value = file};
                     cmd.Parameters.Add(param);
 
                     i++;
@@ -492,12 +488,14 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("FILEGROUP"))
             {
-                int i = 0;
-                foreach (string filegroup in config["FILEGROUP"])
+                var i = 0;
+                foreach (var filegroup in config["FILEGROUP"])
                 {
                     filegroupOptions.Add(string.Format("FILEGROUP=@filegroup{0}", i));
-                    param = new SqlParameter(string.Format("@filegroup{0}", i), SqlDbType.NVarChar, 2000);
-                    param.Value = filegroup;
+                    param = new SqlParameter(string.Format("@filegroup{0}", i), SqlDbType.NVarChar, 2000)
+                    {
+                        Value = filegroup
+                    };
                     cmd.Parameters.Add(param);
 
                     i++;
@@ -511,32 +509,25 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("MOVE"))
             {
-                string moveClause = " ";
-                int i = 0;
-                foreach (string moveInfo in config["MOVE"])
+                var moveClause = " ";
+                var i = 0;
+                foreach (var moveInfo in config["MOVE"])
                 {
                     if (i > 0)
                     {
                         moveClause += ", ";
                     }
 
-                    int quoteCount = 0;
-                    foreach (char c in moveInfo)
-                    {
-                        if (c == '\'')
-                        {
-                            quoteCount++;
-                        }
-                    }
+                    var quoteCount = moveInfo.Count(c => c == '\'');
                     if (quoteCount != 4)
                     {
                         throw new ArgumentException(string.Format("db: Invalid MOVE clause: {0}.  Please write it in the form MOVE='from'TO'to'", moveInfo));
                     }
 
-                    string[] moveSplit = moveInfo.Split('\'');
-                    string moveFrom = moveSplit[1];
-                    string moveToKeyword = moveSplit[2].Trim(); ;
-                    string moveTo = moveSplit[3];
+                    var moveSplit = moveInfo.Split('\'');
+                    var moveFrom = moveSplit[1];
+                    var moveToKeyword = moveSplit[2].Trim();
+                    var moveTo = moveSplit[3];
 
                     if (moveToKeyword != "TO")
                     {
@@ -552,12 +543,12 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("BUFFERCOUNT"))
             {
-                List<string> valList = config["BUFFERCOUNT"];
+                var valList = config["BUFFERCOUNT"];
                 if (valList.Count != 1)
                 {
                     throw new ArgumentException("BUFFERCOUNT parameter must have a value.");
                 }
-                string val = valList[0];
+                var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
@@ -568,12 +559,12 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("MAXTRANSFERSIZE"))
             {
-                List<string> valList = config["MAXTRANSFERSIZE"];
+                var valList = config["MAXTRANSFERSIZE"];
                 if (valList.Count != 1)
                 {
                     throw new ArgumentException("MAXTRANSFERSIZE parameter must have a value.");
                 }
-                string val = valList[0];
+                var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
@@ -584,12 +575,12 @@ namespace MSBackupPipe.StdPlugins.Database
 
             if (config.ContainsKey("STATS"))
             {
-                List<string> valList = config["STATS"];
+                var valList = config["STATS"];
                 if (valList.Count != 1)
                 {
                     throw new ArgumentException("STATS parameter must have a value.");
                 }
-                string val = valList[0];
+                var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
@@ -601,7 +592,7 @@ namespace MSBackupPipe.StdPlugins.Database
             string filegroupClause = null;
             if (filegroupOptions.Count > 0)
             {
-                for (int i = 0; i < filegroupOptions.Count; i++)
+                for (var i = 0; i < filegroupOptions.Count; i++)
                 {
                     if (i > 0)
                     {
@@ -616,7 +607,7 @@ namespace MSBackupPipe.StdPlugins.Database
             if (withOptions.Count > 0)
             {
                 withClause = " WITH ";
-                for (int i = 0; i < withOptions.Count; i++)
+                for (var i = 0; i < withOptions.Count; i++)
                 {
                     if (i > 0)
                     {
@@ -626,28 +617,23 @@ namespace MSBackupPipe.StdPlugins.Database
                 }
             }
 
-            string databaseOrLog = restoreType == RestoreType.Log ? "LOG" : "DATABASE";
+            var databaseOrLog = restoreType == RestoreType.Log ? "LOG" : "DATABASE";
             cmd.CommandType = CommandType.Text;
-            List<string> tempDevs = new List<string>(deviceNames);
-            List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
-            {
-                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
-            });
+            var tempDevs = new List<string>(deviceNames);
+            var devSql = tempDevs.ConvertAll(devName => string.Format("VIRTUAL_DEVICE='{0}'", devName));
 
             cmd.CommandText = string.Format("RESTORE {0} @databasename {1}FROM {2}{3};", databaseOrLog, filegroupClause, string.Join(",", devSql.ToArray()), withClause);
         }
 
         public void ConfigureVerifyCommand(Dictionary<string, List<string>> config, IEnumerable<string> deviceNames, SqlCommand cmd)
         {
-            ParameterInfo.ValidateParams(mVerifyParamSchema, config);
+            ParameterInfo.ValidateParams(MVerifyParamSchema, config);
 
-            SqlParameter param;
-            param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255);
-            param.Value = config["database"][0];
+            var param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255) {Value = config["database"][0]};
             cmd.Parameters.Add(param);
 
-            List<string> withOptions = new List<string>();
-            List<string> filegroupOptions = new List<string>();
+            var withOptions = new List<string>();
+            //var filegroupOptions = new List<string>();
 
             if (config.ContainsKey("CHECKSUM"))
             {
@@ -677,7 +663,7 @@ namespace MSBackupPipe.StdPlugins.Database
             if (withOptions.Count > 0)
             {
                 withClause = " WITH ";
-                for (int i = 0; i < withOptions.Count; i++)
+                for (var i = 0; i < withOptions.Count; i++)
                 {
                     if (i > 0)
                     {
@@ -687,13 +673,10 @@ namespace MSBackupPipe.StdPlugins.Database
                 }
             }
 
-            string databaseOrLog = "VERIFYONLY";// restoreType == RestoreType.Log ? "LOG" : "DATABASE";
+            const string databaseOrLog = "VERIFYONLY"; // restoreType == RestoreType.Log ? "LOG" : "DATABASE";
             cmd.CommandType = CommandType.Text;
-            List<string> tempDevs = new List<string>(deviceNames);
-            List<string> devSql = tempDevs.ConvertAll<string>(delegate(string devName)
-            {
-                return string.Format("VIRTUAL_DEVICE='{0}'", devName);
-            });
+            var tempDevs = new List<string>(deviceNames);
+            var devSql = tempDevs.ConvertAll(devName => string.Format("VIRTUAL_DEVICE='{0}'", devName));
             cmd.CommandText = string.Format("RESTORE {0} FROM {1}{2};", databaseOrLog, string.Join(",", devSql.ToArray()), withClause);
         }
 

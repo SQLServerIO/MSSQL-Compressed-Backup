@@ -25,69 +25,64 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.IO;
-using System.Reflection;
-
 using VdiNet.VirtualBackupDevice;
-using MSBackupPipe.StdPlugins;
 
 namespace MSBackupPipe.Common
 {
     class DeviceThread : IDisposable
     {
-        private bool mDisposed;
-        private Stream mTopOfPipeline;
-        private IVirtualDevice mDevice;
-        private IVirtualDeviceSet mDeviceSet;
-        private bool mIsBackup;
+        private bool _mDisposed;
+        private Stream _mTopOfPipeline;
+        private IVirtualDevice _mDevice;
+        private IVirtualDeviceSet _mDeviceSet;
+        private bool _mIsBackup;
 
-        private Thread mThread;
-        private Exception mException;
+        private Thread _mThread;
+        private Exception _mException;
 
         public void Initialize(bool isBackup, Stream topOfPipeline, IVirtualDevice device, IVirtualDeviceSet deviceSet)
         {
-            mIsBackup = isBackup;
-            mTopOfPipeline = topOfPipeline;
-            mDevice = device;
-            mDeviceSet = deviceSet;
+            _mIsBackup = isBackup;
+            _mTopOfPipeline = topOfPipeline;
+            _mDevice = device;
+            _mDeviceSet = deviceSet;
         }
 
         public void BeginCopy()
         {
 
-            ThreadStart job = new ThreadStart(ThreadStart);
-            mThread = new Thread(job);
-            mThread.Start();
+            var job = new ThreadStart(ThreadStart);
+            _mThread = new Thread(job);
+            _mThread.Start();
         }
 
         public Exception EndCopy()
         {
-            mThread.Join();
-            return mException;
+            _mThread.Join();
+            return _mException;
         }
 
         private void ThreadStart()
         {
             try
             {
-                ICommandBuffer buff = mDevice.CreateCommandBuffer();
+                var buff = _mDevice.CreateCommandBuffer();
 
                 try
                 {
-                    ReadWriteData(mDevice, buff, mTopOfPipeline, mIsBackup);
+                    ReadWriteData(_mDevice, buff, _mTopOfPipeline, _mIsBackup);
                 }
                 catch (Exception)
                 {
-                    mDeviceSet.SignalAbort();
+                    _mDeviceSet.SignalAbort();
                     throw;
                 }
             }
             catch (Exception e)
             {
-                mException = e;
+                _mException = e;
             }
         }
 
@@ -97,7 +92,7 @@ namespace MSBackupPipe.Common
             {
                 if (!buff.TimedOut)
                 {
-                    CompletionCode completionCode = CompletionCode.DiskFull;
+                    var completionCode = CompletionCode.DiskFull;
                     uint bytesTransferred = 0;
 
                     try
@@ -125,14 +120,7 @@ namespace MSBackupPipe.Common
 
                                 bytesTransferred = (uint)buff.ReadFromStream(stream);
 
-                                if (bytesTransferred > 0)
-                                {
-                                    completionCode = CompletionCode.Success;
-                                }
-                                else
-                                {
-                                    completionCode = CompletionCode.HandleEof;
-                                }
+                                completionCode = bytesTransferred > 0 ? CompletionCode.Success : CompletionCode.HandleEof;
 
                                 break;
                             case DeviceCommandType.ClearError:
@@ -150,7 +138,7 @@ namespace MSBackupPipe.Common
                     }
                     finally
                     {
-                        device.CompleteCommand(buff, completionCode, bytesTransferred, (ulong)0);
+                        device.CompleteCommand(buff, completionCode, bytesTransferred, 0);
                     }
                 }
             }
@@ -160,7 +148,7 @@ namespace MSBackupPipe.Common
 
         public void Dispose()
         {
-            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         ~DeviceThread()
@@ -170,17 +158,13 @@ namespace MSBackupPipe.Common
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!mDisposed)
+            if (!_mDisposed)
             {
                 if (disposing)
                 {
                     // dispose of managed resources
-                    if (mDevice != null)
-                    {
-                        mDevice = null;
-                    }
-
-                    mDeviceSet = null;
+                    _mDevice = null;
+                    _mDeviceSet = null;
 
                     // the Program class will dispose of the streams
 
@@ -194,7 +178,7 @@ namespace MSBackupPipe.Common
                 // There are no unmanaged resources to release, but
                 // if we add them, they need to be released here.
             }
-            mDisposed = true;
+            _mDisposed = true;
 
             // If it is available, make the call to the
             // base class's Dispose(Boolean) method

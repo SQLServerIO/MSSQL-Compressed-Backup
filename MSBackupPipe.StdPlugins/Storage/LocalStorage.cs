@@ -26,21 +26,23 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using System.Linq;
 
 namespace MSBackupPipe.StdPlugins.Storage
 {
     public class LocalStorage : IBackupStorage
     {
-        private List<bool> mDeleteOnAbort = new List<bool>();
-        private List<FileInfo> mFileInfosToDeleteOnAbort = new List<FileInfo>();
+        private List<bool> _mDeleteOnAbort = new List<bool>();
+        private List<FileInfo> _mFileInfosToDeleteOnAbort = new List<FileInfo>();
 
-        private static Dictionary<string, ParameterInfo> mBackupParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
         static LocalStorage()
         {
-            mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mBackupParamSchema.Add("path", new ParameterInfo(true, true));
+            MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"path", new ParameterInfo(true, true)}
+            };
         }
 
         #region IBackupStorage Members
@@ -52,79 +54,67 @@ namespace MSBackupPipe.StdPlugins.Storage
 
         public int GetNumberOfDevices(Dictionary<string, List<string>> config)
         {
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
             return config["path"].Count;
         }
 
         public Stream[] GetBackupWriter(Dictionary<string, List<string>> config)
         {
-            mDeleteOnAbort.Clear();
-            mFileInfosToDeleteOnAbort.Clear();
+            _mDeleteOnAbort.Clear();
+            _mFileInfosToDeleteOnAbort.Clear();
 
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
-            List<string> paths = config["path"];
-            List<FileInfo> fileInfos = paths.ConvertAll<FileInfo>(delegate(string path)
-            {
-                return new FileInfo(path);
-            });
+            var paths = config["path"];
+            var fileInfos = paths.ConvertAll(path => new FileInfo(path));
 
             // initialize to false:
-            mDeleteOnAbort = new List<bool>(new bool[fileInfos.Count]);
-            mFileInfosToDeleteOnAbort = fileInfos;
+            _mDeleteOnAbort = new List<bool>(new bool[fileInfos.Count]);
+            _mFileInfosToDeleteOnAbort = fileInfos;
 
-            for (int i = 0; i < mDeleteOnAbort.Count; i++)
+            for (var i = 0; i < _mDeleteOnAbort.Count; i++)
             {
-                mDeleteOnAbort[i] = !fileInfos[i].Exists;
+                _mDeleteOnAbort[i] = !fileInfos[i].Exists;
             }
 
             Console.WriteLine(string.Format("storage:"));
-            foreach (FileInfo fi in fileInfos)
+            foreach (var fi in fileInfos)
             {
-                Console.WriteLine(string.Format("path={0}", fi.FullName));
+                Console.WriteLine("path={0}", fi.FullName);
             }
 
-            List<Stream> results = new List<Stream>(fileInfos.Count);
+            var results = new List<Stream>(fileInfos.Count);
+            results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Create)));
             //TODO: preallocate file to speed up writes and cut down on fragmentations
             //TODO: add unbuffered IO to speed up writes and cut down on memory usage
-            foreach (FileInfo fi in fileInfos)
-            {
-                results.Add(fi.Open(FileMode.Create));
-            }
 
             return results.ToArray();
         }
 
         public Stream[] GetRestoreReader(Dictionary<string, List<string>> config, out long estimatedTotalBytes)
         {
-            mDeleteOnAbort.Clear();
-            mFileInfosToDeleteOnAbort.Clear();
+            _mDeleteOnAbort.Clear();
+            _mFileInfosToDeleteOnAbort.Clear();
 
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
-            List<string> paths = config["path"];
-            List<FileInfo> fileInfos = paths.ConvertAll<FileInfo>(delegate(string path)
-            {
-                return new FileInfo(path);
-            });
+            var paths = config["path"];
+            var fileInfos = paths.ConvertAll(path => new FileInfo(path));
 
             long combinedSize = 0;
 
             Console.WriteLine(string.Format("storage:"));
-            foreach (FileInfo fi in fileInfos)
+            foreach (var fi in fileInfos)
             {
-                Console.WriteLine(string.Format("path={0}", fi.FullName));
+                Console.WriteLine("path={0}", fi.FullName);
                 combinedSize += fi.Length;
             }
 
             estimatedTotalBytes = combinedSize;
 
-            List<Stream> results = new List<Stream>(fileInfos.Count);
-            foreach (FileInfo fi in fileInfos)
-            {
-                results.Add(fi.Open(FileMode.Open));
-            }
+            var results = new List<Stream>(fileInfos.Count);
+            results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Open)));
             return results.ToArray();
         }
 
@@ -138,16 +128,16 @@ namespace MSBackupPipe.StdPlugins.Storage
 
         public void CleanupOnAbort()
         {
-            for (int i = 0; i < mFileInfosToDeleteOnAbort.Count; i++)
+            for (var i = 0; i < _mFileInfosToDeleteOnAbort.Count; i++)
             {
-                FileInfo fi = mFileInfosToDeleteOnAbort[i];
-                bool deleteOnAbort = mDeleteOnAbort[i];
+                var fi = _mFileInfosToDeleteOnAbort[i];
+                var deleteOnAbort = _mDeleteOnAbort[i];
                 if (deleteOnAbort && fi != null)
                 {
                     fi.Delete();
                 }
             }
-            mFileInfosToDeleteOnAbort = null;
+            _mFileInfosToDeleteOnAbort = null;
         }
         #endregion
     }

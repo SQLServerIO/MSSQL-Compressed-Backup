@@ -26,35 +26,37 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-
 using ICSharpCode.SharpZipLib.Zip;
 
-namespace MSBackupPipe.StdPlugins
+namespace MSBackupPipe.StdPlugins.Transform
 {
     public class Zip64Transform : IBackupTransformer
     {
-        private static Dictionary<string, ParameterInfo> mBackupParamSchema;
-        private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MRestoreParamSchema;
         static Zip64Transform()
         {
-            mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mBackupParamSchema.Add("level", new ParameterInfo(false, false));
-            mBackupParamSchema.Add("filename", new ParameterInfo(false, false));
+            MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"level", new ParameterInfo(false, false)},
+                {"filename", new ParameterInfo(false, false)}
+            };
 
-            mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mRestoreParamSchema.Add("filename", new ParameterInfo(false, false));
+            MRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"filename", new ParameterInfo(false, false)}
+            };
         }
 
         #region IBackupTransformer Members
 
         public Stream GetBackupWriter(Dictionary<string, List<string>> config, Stream writeToStream)
         {
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
-            string filename = "database.bak";
-            int level = 7;
+            var filename = "database.bak";
+            var level = 7;
 
             List<string> sLevel;
             if (config.TryGetValue("level", out sLevel))
@@ -75,7 +77,7 @@ namespace MSBackupPipe.StdPlugins
             {
                 filename = config["filename"][0];
             }
-            Console.WriteLine(string.Format("Compressor: zip64 - level = {0}, filename={1}", level, filename));
+            Console.WriteLine("Compressor: zip64 - level = {0}, filename={1}", level, filename);
 
             return new OneFileZipOutputStream(filename, level, writeToStream);
         }
@@ -87,7 +89,7 @@ namespace MSBackupPipe.StdPlugins
 
         public Stream GetRestoreReader(Dictionary<string, List<string>> config, Stream readFromStream)
         {
-            ParameterInfo.ValidateParams(mRestoreParamSchema, config);
+            ParameterInfo.ValidateParams(MRestoreParamSchema, config);
 
             string filename = null;
             if (config.ContainsKey("filename"))
@@ -101,10 +103,7 @@ namespace MSBackupPipe.StdPlugins
             {
                 return new FirstFileZipInputStream(readFromStream);
             }
-            else
-            {
-                return new FindFileZipInputStream(readFromStream, filename);
-            }
+            return new FindFileZipInputStream(readFromStream, filename);
         }
 
         public string CommandLineHelp
@@ -119,20 +118,20 @@ namespace MSBackupPipe.StdPlugins
 
         private class OneFileZipOutputStream : ZipOutputStream
         {
-            private bool mDisposed;
+            private bool _mDisposed;
             public OneFileZipOutputStream(string internalFilename, int compressionLevel, Stream writeToStream)
                 : base(writeToStream)
             {
-                ZipEntry entry = new ZipEntry(internalFilename);
+                var entry = new ZipEntry(internalFilename);
 
-                base.IsStreamOwner = true;
-                base.PutNextEntry(entry);
-                base.SetLevel(compressionLevel);
+                IsStreamOwner = true;
+                PutNextEntry(entry);
+                SetLevel(compressionLevel);
             }
 
             protected override void Dispose(bool disposing)
             {
-                if (!mDisposed)
+                if (!_mDisposed)
                 {
                     if (disposing)
                     {
@@ -143,7 +142,7 @@ namespace MSBackupPipe.StdPlugins
                     // There are no unmanaged resources to release, but
                     // if we add them, they need to be released here.
                 }
-                mDisposed = true;
+                _mDisposed = true;
 
                 // If it is available, make the call to the
                 // base class's Dispose(Boolean) method
@@ -153,12 +152,12 @@ namespace MSBackupPipe.StdPlugins
 
         private class FirstFileZipInputStream : ZipInputStream
         {
-            private bool mDisposed;
+            private bool _mDisposed;
             public FirstFileZipInputStream(Stream readFromStream)
                 : base(readFromStream)
             {
-                base.IsStreamOwner = true;
-                ZipEntry entry = base.GetNextEntry();
+                IsStreamOwner = true;
+                var entry = GetNextEntry();
 
                 if (entry == null)
                 {
@@ -168,7 +167,7 @@ namespace MSBackupPipe.StdPlugins
 
             protected override void Dispose(bool disposing)
             {
-                if (!mDisposed)
+                if (!_mDisposed)
                 {
                     if (disposing)
                     {
@@ -179,7 +178,7 @@ namespace MSBackupPipe.StdPlugins
                     // There are no unmanaged resources to release, but
                     // if we add them, they need to be released here.
                 }
-                mDisposed = true;
+                _mDisposed = true;
 
                 // If it is available, make the call to the
                 // base class's Dispose(Boolean) method
@@ -189,16 +188,16 @@ namespace MSBackupPipe.StdPlugins
 
         private class FindFileZipInputStream : ZipInputStream
         {
-            private bool mDisposed;
+            private bool _mDisposed;
             public FindFileZipInputStream(Stream readFromStream, string filename)
                 : base(readFromStream)
             {
-                base.IsStreamOwner = true;
+                IsStreamOwner = true;
 
-                ZipEntry entry = base.GetNextEntry();
+                var entry = GetNextEntry();
                 while (!entry.IsFile || entry.Name != filename)
                 {
-                    entry = base.GetNextEntry();
+                    entry = GetNextEntry();
                 }
 
                 if (entry == null)
@@ -209,7 +208,7 @@ namespace MSBackupPipe.StdPlugins
 
             protected override void Dispose(bool disposing)
             {
-                if (!mDisposed)
+                if (!_mDisposed)
                 {
                     if (disposing)
                     {
@@ -220,7 +219,7 @@ namespace MSBackupPipe.StdPlugins
                     // There are no unmanaged resources to release, but
                     // if we add them, they need to be released here.
                 }
-                mDisposed = true;
+                _mDisposed = true;
 
                 // If it is available, make the call to the
                 // base class's Dispose(Boolean) method

@@ -24,16 +24,12 @@ EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Security.Cryptography;
 
 namespace MSBackupPipe.StdPlugins.Transform
 {
     using System;
     using System.Collections.Generic;
-    using System.Text;
     using System.IO;
 
     namespace MSBackupPipe.StdPlugins
@@ -41,29 +37,33 @@ namespace MSBackupPipe.StdPlugins.Transform
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "AES")]
         public class AESTransform : IBackupTransformer
         {
-            byte[] AES_KEY = new byte[] { };
-            byte[] IV = new byte[] { };
-            private static Dictionary<string, ParameterInfo> mBackupParamSchema;
-            private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
+            byte[] _aesKey = { };
+            byte[] _iv = { };
+            private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
+            private static readonly Dictionary<string, ParameterInfo> MRestoreParamSchema;
             static AESTransform()
             {
-                mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-                mBackupParamSchema.Add("key", new ParameterInfo(false, true));
+                MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+                {
+                    {"key", new ParameterInfo(false, true)}
+                };
 
-                mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-                mRestoreParamSchema.Add("key", new ParameterInfo(false, true));
+                MRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+                {
+                    {"key", new ParameterInfo(false, true)}
+                };
             }
 
             #region IBackupTransformer Members
 
             public Stream GetBackupWriter(Dictionary<string, List<string>> config, Stream writeToStream)
             {
-                ParameterInfo.ValidateParams(mBackupParamSchema, config);
+                ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
                 List<string> sKey;
                 if (config.TryGetValue("key", out sKey))
                 {
-                    if (String.IsNullOrEmpty(sKey[0]) == true)
+                    if (String.IsNullOrEmpty(sKey[0]))
                     {
                         throw new ArgumentException(string.Format("AES: Unable to read the key: {0}", sKey[0]));
                     }
@@ -75,21 +75,26 @@ namespace MSBackupPipe.StdPlugins.Transform
 
                 Console.WriteLine("Encrypter: AES");
 
-                PasswordDeriveBytes pdb = new PasswordDeriveBytes(sKey[0], new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
+                using (var pdb = new PasswordDeriveBytes(sKey[0], new byte[] {0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76}))
+                {
+#pragma warning disable 618
+                    _aesKey = pdb.GetBytes(32);
+                    _iv = pdb.GetBytes(16);
+#pragma warning restore 618
+                }
 
-                AES_KEY = pdb.GetBytes(32);
-                IV = pdb.GetBytes(16);
+                using (var aes = Rijndael.Create())
+                {
+                    aes.BlockSize = 128;
+                    aes.KeySize = 256;
+                    aes.FeedbackSize = 128;
+                    aes.Mode = CipherMode.CFB;
+                    aes.Padding = PaddingMode.PKCS7;
+                    aes.IV = _iv;
+                    aes.Key = _aesKey;
 
-                Rijndael AES = Rijndael.Create();
-                AES.BlockSize = 128;
-                AES.KeySize = 256;
-                AES.FeedbackSize = 128;
-                AES.Mode = CipherMode.CFB;
-                AES.Padding = PaddingMode.PKCS7;
-                AES.IV = IV;
-                AES.Key = AES_KEY;
-
-                return new CryptoStream(writeToStream, AES.CreateEncryptor(), CryptoStreamMode.Write);
+                    return new CryptoStream(writeToStream, aes.CreateEncryptor(), CryptoStreamMode.Write);
+                }
             }
 
             public string Name
@@ -99,14 +104,14 @@ namespace MSBackupPipe.StdPlugins.Transform
 
             public Stream GetRestoreReader(Dictionary<string, List<string>> config, Stream readFromStream)
             {
-                ParameterInfo.ValidateParams(mRestoreParamSchema, config);
+                ParameterInfo.ValidateParams(MRestoreParamSchema, config);
 
                 Console.WriteLine("Decrypter: AES");
 
                 List<string> sKey;
                 if (config.TryGetValue("key", out sKey))
                 {
-                    if (String.IsNullOrEmpty(sKey[0]) == true)
+                    if (String.IsNullOrEmpty(sKey[0]))
                     {
                         throw new ArgumentException(string.Format("AES: Unable to read the key: {0}", sKey[0]));
                     }
@@ -116,22 +121,26 @@ namespace MSBackupPipe.StdPlugins.Transform
                     throw new ArgumentException(string.Format("AES: key is required to decrypt data."));
                 }
 
-                PasswordDeriveBytes pdb = new PasswordDeriveBytes(sKey[0], new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
+                using (var pdb = new PasswordDeriveBytes(sKey[0], new byte[] {0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76}))
+                {
+#pragma warning disable 618
+                    _aesKey = pdb.GetBytes(32);
+                    _iv = pdb.GetBytes(16);
+#pragma warning restore 618
+                }
 
-                AES_KEY = pdb.GetBytes(32);
-                IV = pdb.GetBytes(16);
+                using (var aes = Rijndael.Create())
+                {
+                    aes.BlockSize = 128;
+                    aes.KeySize = 256;
+                    aes.FeedbackSize = 128;
+                    aes.Mode = CipherMode.CFB;
+                    aes.Padding = PaddingMode.PKCS7;//.None;
+                    aes.IV = _iv;
+                    aes.Key = _aesKey;
 
-                Rijndael AES = Rijndael.Create();
-
-                AES.BlockSize = 128;
-                AES.KeySize = 256;
-                AES.FeedbackSize = 128;
-                AES.Mode = CipherMode.CFB;
-                AES.Padding = PaddingMode.PKCS7;//.None;
-                AES.IV = IV;
-                AES.Key = AES_KEY;
-
-                return new CryptoStream(readFromStream, AES.CreateDecryptor(), CryptoStreamMode.Read);
+                    return new CryptoStream(readFromStream, aes.CreateDecryptor(), CryptoStreamMode.Read);
+                }
             }
 
             public string CommandLineHelp

@@ -25,8 +25,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MSBackupPipe.StdPlugins
 {
@@ -47,7 +45,8 @@ namespace MSBackupPipe.StdPlugins
         /// Whenever *any* stream reads or writes data, you must call this method
         /// so that the engine can keep track of the progress.
         /// </summary>
-        /// <param name="additionalBytesProcessed"></param>
+        /// <param name="totalBytesProcessedByThread"></param>
+        /// <param name="threadId"></param>
         /// <returns>The *suggested* duration to be notified again</returns>
         TimeSpan UpdateBytesProcessed(long totalBytesProcessedByThread, int threadId);
 

@@ -25,8 +25,6 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.IO;
 
 using ICSharpCode.SharpZipLib.Zip;
@@ -45,15 +43,15 @@ namespace ReleasePackaging
                 const string BETA_STRING = ""; // "beta";
                 const string VERSION_STRING = "2.0";
 
-                DirectoryInfo solutionDir = new DirectoryInfo(args[0]);
+                var solutionDir = new DirectoryInfo(args[0]);
 
                 if (!solutionDir.Exists)
                 {
-                    throw new ArgumentException(string.Format("The solution directory, {0}, does not exist."));
+                    throw new ArgumentException(string.Format("The solution directory, {0}, does not exist.",solutionDir));
                 }
 
-                string platformName = args[1];
-                string configurationName = args[2];
+                var platformName = args[1];
+                var configurationName = args[2];
 
                 if (configurationName != "Release")
                 {
@@ -61,7 +59,7 @@ namespace ReleasePackaging
                 }
 
 
-                DirectoryInfo dirToCompiledFiles = new DirectoryInfo(Path.Combine(solutionDir.FullName, @"MSBackupPipe.Cmd\bin\Release"));
+                var dirToCompiledFiles = new DirectoryInfo(Path.Combine(solutionDir.FullName, @"MSBackupPipe.Cmd\bin\Release"));
 
                 if (!dirToCompiledFiles.Exists)
                 {
@@ -70,7 +68,7 @@ namespace ReleasePackaging
 
 
 
-                DirectoryInfo dirToZip = new DirectoryInfo(solutionDir.FullName + @"obj\dirToZip");
+                var dirToZip = new DirectoryInfo(solutionDir.FullName + @"obj\dirToZip");
                 if (dirToZip.Exists)
                 {
                     dirToZip.Delete(true);
@@ -79,12 +77,12 @@ namespace ReleasePackaging
                 dirToZip.Create();
 
 
-                string dirName = string.Format("MSSQLCompressedBackup_{3}_{1:yyyyMMdd}{2}_{0}", platformName, DateTime.UtcNow, BETA_STRING, VERSION_STRING);
-                string zipSubDirPath = dirToZip.CreateSubdirectory(dirName).FullName;
+                var dirName = string.Format("MSSQLCompressedBackup_{3}_{1:yyyyMMdd}{2}_{0}", platformName, DateTime.UtcNow, BETA_STRING, VERSION_STRING);
+                var zipSubDirPath = dirToZip.CreateSubdirectory(dirName).FullName;
 
 
 
-                foreach (FileInfo file in dirToCompiledFiles.GetFiles())
+                foreach (var file in dirToCompiledFiles.GetFiles())
                 {
                     if (!file.Name.Contains(".vshost."))
                     {
@@ -92,18 +90,18 @@ namespace ReleasePackaging
                     }
                 }
 
-                string redistArch = platformName == "x86" ? "x86" : "x64";
-                string redistPath = Path.Combine(solutionDir.FullName, string.Format(@"Binaries\{0}\Microsoft.VC80.CRT", redistArch));
-                DirectoryInfo redistDir = new DirectoryInfo(redistPath);
-                string redistSubDirPath = new DirectoryInfo(zipSubDirPath).CreateSubdirectory("Microsoft.VC80.CRT").FullName;
+                var redistArch = platformName == "x86" ? "x86" : "x64";
+                var redistPath = Path.Combine(solutionDir.FullName, string.Format(@"Binaries\{0}\Microsoft.VC80.CRT", redistArch));
+                var redistDir = new DirectoryInfo(redistPath);
+                var redistSubDirPath = new DirectoryInfo(zipSubDirPath).CreateSubdirectory("Microsoft.VC80.CRT").FullName;
 
-                foreach (FileInfo file in redistDir.GetFiles())
+                foreach (var file in redistDir.GetFiles())
                 {
                     file.CopyTo(Path.Combine(redistSubDirPath, file.Name));
                 }
 
-                string destFilename = dirName + ".zip";
-                FileInfo destinationZipFile = new FileInfo(solutionDir.FullName + @"\out\" + destFilename);
+                var destFilename = dirName + ".zip";
+                var destinationZipFile = new FileInfo(solutionDir.FullName + @"\out\" + destFilename);
 
                 if (!destinationZipFile.Directory.Exists)
                 {
@@ -115,7 +113,7 @@ namespace ReleasePackaging
                     destinationZipFile.Delete();
                 }
 
-                FastZip fZip = new FastZip();
+                var fZip = new FastZip();
                 fZip.CreateZip(destinationZipFile.FullName, dirToZip.FullName, true, null);
 
                 Console.Write("Built: ");

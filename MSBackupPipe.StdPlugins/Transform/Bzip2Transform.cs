@@ -26,33 +26,33 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-
 using ICSharpCode.SharpZipLib.BZip2;
 
-namespace MSBackupPipe.StdPlugins
+namespace MSBackupPipe.StdPlugins.Transform
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Bzip")]
     public class Bzip2Transform : IBackupTransformer
     {
-        private static Dictionary<string, ParameterInfo> mBackupParamSchema;
-        private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MRestoreParamSchema;
         static Bzip2Transform()
         {
-            mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mBackupParamSchema.Add("level", new ParameterInfo(false, false));
+            MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"level", new ParameterInfo(false, false)}
+            };
 
-            mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
+            MRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
         }
 
         #region IBackupTransformer Members
 
         public Stream GetBackupWriter(Dictionary<string, List<string>> config, Stream writeToStream)
         {
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
-            int level = 1;
+            var level = 1;
             List<string> sLevel;
             if (config.TryGetValue("level", out sLevel))
             {
@@ -67,7 +67,7 @@ namespace MSBackupPipe.StdPlugins
                 throw new ArgumentException(string.Format("bzip2: Level must be between 1 and 9: {0}", level));
             }
 
-            Console.WriteLine(string.Format("Compressor: bzip2 - level = {0}", level));
+            Console.WriteLine("Compressor: bzip2 - level = {0}", level);
 
             return new BZip2OutputStream(writeToStream, level);// 
         }
@@ -79,7 +79,7 @@ namespace MSBackupPipe.StdPlugins
 
         public Stream GetRestoreReader(Dictionary<string, List<string>> config, Stream readFromStream)
         {
-            ParameterInfo.ValidateParams(mRestoreParamSchema, config);
+            ParameterInfo.ValidateParams(MRestoreParamSchema, config);
 
             Console.WriteLine(string.Format("Decompressor: bzip2"));
 

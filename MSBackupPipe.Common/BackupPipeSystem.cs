@@ -26,7 +26,7 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using System.Reflection;
 using System.IO;
 
@@ -85,91 +85,104 @@ namespace MSBackupPipe.Common
             BackupOrRestore(5, storageConfig, databaseConfig, pipelineConfig, updateNotifier, out returndevices);
         }
 
-        private static void BackupOrRestore(int commandType, ConfigPair storageConfig, ConfigPair databaseConfig, List<ConfigPair> pipelineConfig, IUpdateNotification updateNotifier, out List<string> returndevices)
+        private static void BackupOrRestore(int commandType, ConfigPair storageConfig, ConfigPair databaseConfig,List<ConfigPair> pipelineConfig, IUpdateNotification updateNotifier, out List<string> returndevices)
         {
-            bool isBackup;
-            if (commandType == 1)
-                isBackup = true;
-            else
-                isBackup = false;
+            var isBackup = commandType == 1;
 
-            string deviceSetName = Guid.NewGuid().ToString();
+            var deviceSetName = Guid.NewGuid().ToString();
 
-            IBackupStorage storage = storageConfig.TransformationType.GetConstructor(new Type[0]).Invoke(new object[0]) as IBackupStorage;
-            IBackupDatabase databaseComp = databaseConfig.TransformationType.GetConstructor(new Type[0]).Invoke(new object[0]) as IBackupDatabase;
+            var constructorInfo = storageConfig.TransformationType.GetConstructor(new Type[0]);
+            if (constructorInfo == null)
+                throw new ArgumentException("Unable to transformation type");
 
+            var storage = constructorInfo.Invoke(new object[0]) as IBackupStorage;
+            var constructor = databaseConfig.TransformationType.GetConstructor(new Type[0]);
+            if (constructor == null)
+                throw new ArgumentException("Unable to transformation type");
+
+            var databaseComp = constructor.Invoke(new object[0]) as IBackupDatabase;
             try
             {
-                int numDevices = storage.GetNumberOfDevices(storageConfig.Parameters);
+                if (storage == null)
+                {
+                    returndevices = null;
+                    return;
+                }
+                var numDevices = storage.GetNumberOfDevices(storageConfig.Parameters);
                 //get instance name e.g. myserver\myinstance 
-                string instanceName = databaseComp.GetInstanceName(databaseConfig.Parameters);
+                if (databaseComp == null)
+                {
+                    returndevices = null;
+                    return;
+                }
+                var instanceName = databaseComp.GetInstanceName(databaseConfig.Parameters);
                 //get the cluster networking name usually diffrent than the currently running node name
-                string clusterNetworkName = databaseComp.GetClusterNetworkName(databaseConfig.Parameters);
-                SqlPlatform sqlPlatform = new SqlPlatform();
+                var clusterNetworkName = databaseComp.GetClusterNetworkName(databaseConfig.Parameters);
                 //get bit version of our platform x86,x64 or IA64
-                if (databaseConfig.Parameters.ContainsKey("user"))
-                {
-                    if (databaseConfig.Parameters.ContainsKey("password"))
-                    {
-                        sqlPlatform = VirtualBackupDeviceFactory.DiscoverSqlPlatform(instanceName, clusterNetworkName, databaseConfig.Parameters["user"][0].ToString(), databaseConfig.Parameters["password"][0].ToString());
-                    }
-                    else
-                    {
-                        sqlPlatform = VirtualBackupDeviceFactory.DiscoverSqlPlatform(instanceName, clusterNetworkName, databaseConfig.Parameters["user"][0].ToString(), null);
-                    }
-                }
-                else
-                {
-                    sqlPlatform = VirtualBackupDeviceFactory.DiscoverSqlPlatform(instanceName, clusterNetworkName, null, null);
-                }
+                var sqlPlatform = databaseConfig.Parameters.ContainsKey("user")
+                    ? VirtualBackupDeviceFactory.DiscoverSqlPlatform(instanceName, clusterNetworkName,
+                        databaseConfig.Parameters["user"][0],
+                        databaseConfig.Parameters.ContainsKey("password")
+                            ? databaseConfig.Parameters["password"][0]
+                            : null)
+                    : VirtualBackupDeviceFactory.DiscoverSqlPlatform(instanceName, clusterNetworkName, null,
+                        null);
 
                 //NotifyWhenReady notifyWhenReady = new NotifyWhenReady(deviceName, isBackup);))
-                using (IVirtualDeviceSet deviceSet = VirtualBackupDeviceFactory.NewVirtualDeviceSet(sqlPlatform))
+                using (var deviceSet = VirtualBackupDeviceFactory.NewVirtualDeviceSet(sqlPlatform))
                 {
                     //Since it is possible to have multiple backup/restore targets we encapsulate each call to a device in its own thread
-                    using (SqlThread sql = new SqlThread())
+                    using (var sql = new SqlThread())
                     {
-                        bool sqlStarted = false;
-                        bool sqlFinished = false;
+                        var sqlStarted = false;
+                        var sqlFinished = false;
                         returndevices = new List<string>();
-                        ParallelExecutionException exceptions = new ParallelExecutionException();
+                        var exceptions = new ParallelExecutionException();
 
                         try
                         {
-                            IStreamNotification streamNotification = new InternalStreamNotification(updateNotifier);
+                            IStreamNotification streamNotification =
+                                new InternalStreamNotification(updateNotifier);
                             long estimatedTotalBytes;
-                            List<string> deviceNames = sql.PreConnect(clusterNetworkName, instanceName, deviceSetName, numDevices, databaseComp, databaseConfig.Parameters, commandType, updateNotifier, out estimatedTotalBytes);
+                            var deviceNames = sql.PreConnect(clusterNetworkName, instanceName, deviceSetName,
+                                numDevices, databaseComp, databaseConfig.Parameters, commandType, updateNotifier,
+                                out estimatedTotalBytes);
 
-                            using (DisposableList<Stream> fileStreams = new DisposableList<Stream>(isBackup ? storage.GetBackupWriter(storageConfig.Parameters) : storage.GetRestoreReader(storageConfig.Parameters, out estimatedTotalBytes)))
-                            using (DisposableList<Stream> topOfPilelines = new DisposableList<Stream>(CreatePipeline(pipelineConfig, fileStreams, isBackup, streamNotification, estimatedTotalBytes)))
+                            using (
+                                var fileStreams =
+                                    new DisposableList<Stream>(isBackup
+                                        ? storage.GetBackupWriter(storageConfig.Parameters)
+                                        : storage.GetRestoreReader(storageConfig.Parameters,
+                                            out estimatedTotalBytes)))
+                            using (
+                                var topOfPilelines =
+                                    new DisposableList<Stream>(CreatePipeline(pipelineConfig, fileStreams,
+                                        isBackup, streamNotification, estimatedTotalBytes)))
                             {
-                                ReturnByteScale(estimatedTotalBytes,isBackup);
+                                ReturnByteScale(estimatedTotalBytes, isBackup);
 
-                                VirtualDeviceSetConfig config = new VirtualDeviceSetConfig();
-                                config.Features = FeatureSet.PipeLike;
-                                config.DeviceCount = (uint)topOfPilelines.Count;
+                                var config = new VirtualDeviceSetConfig
+                                {
+                                    Features = FeatureSet.PipeLike,
+                                    DeviceCount = (uint) topOfPilelines.Count
+                                };
                                 deviceSet.CreateEx(instanceName, deviceSetName, config);
                                 sql.BeginExecute();
                                 sqlStarted = true;
                                 deviceSet.GetConfiguration(TimeSpan.FromMinutes(1));
-                                List<IVirtualDevice> devices = new List<IVirtualDevice>();
-
-                                foreach (string devName in deviceNames)
-                                {
-                                    devices.Add(deviceSet.OpenDevice(devName));
-                                }
+                                var devices = deviceNames.Select(deviceSet.OpenDevice).ToList();
 
                                 returndevices = deviceNames;
 
-                                using (DisposableList<DeviceThread> threads = new DisposableList<DeviceThread>(devices.Count))
+                                using (var threads = new DisposableList<DeviceThread>(devices.Count))
                                 {
-                                    for (int i = 0; i < devices.Count; i++)
+                                    for (var i = 0; i < devices.Count; i++)
                                     {
-                                        DeviceThread dThread = new DeviceThread();
+                                        var dThread = new DeviceThread();
                                         threads.Add(dThread);
                                         dThread.Initialize(isBackup, topOfPilelines[i], devices[i], deviceSet);
                                     }
-                                    foreach (DeviceThread dThread in threads)
+                                    foreach (var dThread in threads)
                                     {
                                         dThread.BeginCopy();
                                     }
@@ -177,7 +190,7 @@ namespace MSBackupPipe.Common
                                     updateNotifier.OnStart();
                                     //Console.WriteLine(string.Format("{0} started", isBackup ? "Backup" : "Restore"));
 
-                                    Exception sqlE = sql.EndExecute();
+                                    var sqlE = sql.EndExecute();
                                     sqlFinished = true;
 
                                     if (sqlE != null)
@@ -185,13 +198,12 @@ namespace MSBackupPipe.Common
                                         exceptions.Exceptions.Add(sqlE);
                                     }
 
-                                    foreach (DeviceThread dThread in threads)
+                                    foreach (
+                                        var devE in
+                                            threads.Select(dThread => dThread.EndCopy())
+                                                .Where(devE => devE != null))
                                     {
-                                        Exception devE = dThread.EndCopy();
-                                        if (devE != null)
-                                        {
-                                            exceptions.Exceptions.Add(devE);
-                                        }
+                                        exceptions.Exceptions.Add(devE);
                                     }
                                 }
                             }
@@ -202,33 +214,31 @@ namespace MSBackupPipe.Common
                         }
                         finally
                         {
+                            if (exceptions.HasExceptions)
+                            {
+                                throw exceptions;
+                            }
+
                             if (sqlStarted && !sqlFinished)
                             {
-                                Exception sqlE = sql.EndExecute();
-                                sqlFinished = true;
+                                var sqlE = sql.EndExecute();
                                 if (sqlE != null)
                                 {
                                     exceptions.Exceptions.Add(sqlE);
                                 }
                             }
                         }
-
-                        if (exceptions.HasExceptions)
-                        {
-                            throw exceptions;
-                        }
                     }
                 }
             }
             catch
             {
-                storage.CleanupOnAbort();
+                if (storage != null) storage.CleanupOnAbort();
                 throw;
             }
-
         }
 
-        private static void ReturnByteScale(long estimatedTotalBytes, bool IsBackup)
+        private static void ReturnByteScale(long estimatedTotalBytes, bool isBackup)
         {
             if ((estimatedTotalBytes / 1024) > 1)
             {
@@ -238,53 +248,57 @@ namespace MSBackupPipe.Common
                     {
                         if ((estimatedTotalBytes / 1024 / 1024 / 1024 / 1024) > 1)
                         {
-                            Console.WriteLine(string.Format("Estimated Number Of Terabytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024 / 1024)));
+                            Console.WriteLine(string.Format("Estimated Number Of Terabytes To {0}:", isBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024 / 1024)));
                         }
                         else
                         {
-                            Console.WriteLine(string.Format("Estimated Number Of Gigabytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024)));
+                            Console.WriteLine(string.Format("Estimated Number Of Gigabytes To {0}:", isBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024 / 1024)));
                         }
                     }
                     else
                     {
-                        Console.WriteLine(string.Format("Estimated Number Of Megabytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024)));
+                        Console.WriteLine(string.Format("Estimated Number Of Megabytes To {0}:", isBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0 / 1024)));
                     }
                 }
                 else
                 {
-                    Console.WriteLine(string.Format("Estimated Number Of Kilobytes To {0}:", IsBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0)));
+                    Console.WriteLine(string.Format("Estimated Number Of Kilobytes To {0}:", isBackup ? "Backup" : "Restore") + string.Format("{0:0.00}", (estimatedTotalBytes / 1024.0)));
                 }
             }
             else
             {
-                Console.WriteLine(string.Format("Estimated Number Of bytes To {0}:", IsBackup ? "Backup" : "Restore") + estimatedTotalBytes.ToString());
+                Console.WriteLine(string.Format("Estimated Number Of bytes To {0}:", isBackup ? "Backup" : "Restore") + estimatedTotalBytes);
             }
         }
 
-        private static Stream[] CreatePipeline(List<ConfigPair> pipelineConfig, IList<Stream> fileStreams, bool isBackup, IStreamNotification streamNotification, long estimatedTotalBytes)
+        private static IEnumerable<Stream> CreatePipeline(IList<ConfigPair> pipelineConfig, ICollection<Stream> fileStreams, bool isBackup, IStreamNotification streamNotification, long estimatedTotalBytes)
         {
             streamNotification.EstimatedBytes = estimatedTotalBytes;
 
-            List<Stream> result = new List<Stream>(fileStreams.Count);
+            var result = new List<Stream>(fileStreams.Count);
 
-            foreach (Stream fileStream in fileStreams)
+            foreach (var fileStream in fileStreams)
             {
-                Stream topStream = fileStream;
+                var topStream = fileStream;
                 if (!isBackup)
                 {
                     topStream = new TrackingStream(topStream, streamNotification);
                 }
 
-                for (int i = pipelineConfig.Count - 1; i >= 0; i--)
+                for (var i = pipelineConfig.Count - 1; i >= 0; i--)
                 {
-                    ConfigPair config = pipelineConfig[i];
+                    var config = pipelineConfig[i];
 
-                    IBackupTransformer tran = config.TransformationType.GetConstructor(new Type[0]).Invoke(new object[0]) as IBackupTransformer;
-                    if (tran == null)
+                    var constructorInfo = config.TransformationType.GetConstructor(new Type[0]);
+                    if (constructorInfo != null)
                     {
-                        throw new ArgumentException(string.Format("Unable to create pipe component: {0}", config.TransformationType.Name));
+                        var tran = constructorInfo.Invoke(new object[0]) as IBackupTransformer;
+                        if (tran == null)
+                        {
+                            throw new ArgumentException(string.Format("Unable to create pipe component: {0}", config.TransformationType.Name));
+                        }
+                        topStream = isBackup ? tran.GetBackupWriter(config.Parameters, topStream) : tran.GetRestoreReader(config.Parameters, topStream);
                     }
-                    topStream = isBackup ? tran.GetBackupWriter(config.Parameters, topStream) : tran.GetRestoreReader(config.Parameters, topStream);
                 }
 
                 if (isBackup)
@@ -298,11 +312,12 @@ namespace MSBackupPipe.Common
 
         private static Dictionary<string, Type> LoadComponents(string interfaceName)
         {
-            Dictionary<string, Type> result = new Dictionary<string, Type>(StringComparer.InvariantCultureIgnoreCase);
+            var result = new Dictionary<string, Type>(StringComparer.InvariantCultureIgnoreCase);
 
-            DirectoryInfo binDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory;
+            var binDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory;
 
-            foreach (FileInfo file in binDir.GetFiles("*.dll"))
+            if (binDir == null) return result;
+            foreach (var file in binDir.GetFiles("*.dll"))
             {
                 Assembly dll = null;
                 try
@@ -319,40 +334,34 @@ namespace MSBackupPipe.Common
             return result;
         }
 
-        private static void FindPlugins(Assembly dll, Dictionary<string, Type> result, string interfaceName)
+        private static void FindPlugins(Assembly dll, IDictionary<string, Type> result, string interfaceName)
         {
-            foreach (Type t in dll.GetTypes())
+            foreach (var t in dll.GetTypes())
             {
                 try
                 {
-                    if (t.IsPublic)
+                    if (!t.IsPublic) continue;
+                    if ((t.Attributes & TypeAttributes.Abstract) == TypeAttributes.Abstract) continue;
+                    if (t.GetInterface(interfaceName) == null) continue;
+                    var constructorInfo = t.GetConstructor(new Type[0]);
+                    if (constructorInfo == null) continue;
+                    var o = constructorInfo.Invoke(new object[0]);
+
+                    var test = o as IBackupPlugin;
+
+                    if (test == null) continue;
+                    var name = test.Name.ToLowerInvariant();
+
+                    if (name.Contains("|") || name.Contains("("))
                     {
-                        if (!((t.Attributes & TypeAttributes.Abstract) == TypeAttributes.Abstract))
-                        {
-                            if (t.GetInterface(interfaceName) != null)
-                            {
-                                object o = t.GetConstructor(new Type[0]).Invoke(new object[0]);
-
-                                IBackupPlugin test = o as IBackupPlugin;
-
-                                if (test != null)
-                                {
-                                    string name = test.Name.ToLowerInvariant();
-
-                                    if (name.Contains("|") || name.Contains("("))
-                                    {
-                                        throw new ArgumentException(string.Format("The name of the plugin, {0}, cannot contain these characters: |, (", name));
-                                    }
-
-                                    if (result.ContainsKey(name))
-                                    {
-                                        throw new ArgumentException(string.Format("plugin found twice: {0}", name));
-                                    }
-                                    result.Add(name, t);
-                                }
-                            }
-                        }
+                        throw new ArgumentException(string.Format("The name of the plugin, {0}, cannot contain these characters: |, (", name));
                     }
+
+                    if (result.ContainsKey(name))
+                    {
+                        throw new ArgumentException(string.Format("plugin found twice: {0}", name));
+                    }
+                    result.Add(name, t);
                 }
                 catch (Exception e)
                 {

@@ -45,7 +45,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
     <CodeAnalysisRules>-Microsoft.Globalization#CA1301;-Microsoft.Globalization#CA1302;-Microsoft.Globalization#CA1308;-Microsoft.Globalization#CA1306;-Microsoft.Globalization#CA1304;-Microsoft.Globalization#CA1305;-Microsoft.Globalization#CA2101;-Microsoft.Globalization#CA1300;-Microsoft.Globalization#CA1307;-Microsoft.Globalization#CA1309</CodeAnalysisRules>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
@@ -73,6 +73,7 @@
     <Compile Include="ConfigPair.cs" />
     <Compile Include="DeviceThread.cs" />
     <Compile Include="DisposableList.cs" />
+    <Compile Include="HeaderFileList.cs" />
     <Compile Include="InternalStreamNotification.cs" />
     <Compile Include="ParallelExecutionException.cs" />
     <Compile Include="GlobalSuppressions.cs" />

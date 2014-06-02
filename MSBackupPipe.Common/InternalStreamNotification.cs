@@ -26,21 +26,21 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using MSBackupPipe.StdPlugins;
 
 namespace MSBackupPipe.Common
 {
     internal class InternalStreamNotification : IStreamNotification
     {
-        private readonly IUpdateNotification mExternalNotification;
-        private long mEstimatedBytes = 1;
-        private readonly IList<long> mBytesProcessed = new List<long>();
-        private int mLastThreadIdUsed = -1;
+        private readonly IUpdateNotification _mExternalNotification;
+        private long _mEstimatedBytes = 1;
+        private readonly IList<long> _mBytesProcessed = new List<long>();
+        private int _mLastThreadIdUsed = -1;
 
         public InternalStreamNotification(IUpdateNotification notification)
         {
-            mExternalNotification = notification;
+            _mExternalNotification = notification;
         }
 
         public long EstimatedBytes
@@ -49,14 +49,14 @@ namespace MSBackupPipe.Common
             {
                 lock (this)
                 {
-                    return mEstimatedBytes;
+                    return _mEstimatedBytes;
                 }
             }
             set
             {
                 lock (this)
                 {
-                    mEstimatedBytes = Math.Max(1, value);
+                    _mEstimatedBytes = Math.Max(1, value);
                 }
             }
         }
@@ -65,9 +65,9 @@ namespace MSBackupPipe.Common
         {
             lock (this)
             {
-                mLastThreadIdUsed++;
-                mBytesProcessed.Add(0);
-                return mLastThreadIdUsed;
+                _mLastThreadIdUsed++;
+                _mBytesProcessed.Add(0);
+                return _mLastThreadIdUsed;
             }
         }
 
@@ -80,20 +80,16 @@ namespace MSBackupPipe.Common
             
             float bytesProcessed;
             float size;
-            long bytesProcessedSum = 0;
+            long bytesProcessedSum;
             lock (this)
             {
-                mBytesProcessed[threadId] = totalBytesProcessedByThread;
-                bytesProcessedSum = 0;
-                foreach (long bytes in mBytesProcessed)
-                {
-                    bytesProcessedSum += bytes;
-                }
+                _mBytesProcessed[threadId] = totalBytesProcessedByThread;
+                bytesProcessedSum = _mBytesProcessed.Sum();
                 bytesProcessed = bytesProcessedSum;
-                size = mEstimatedBytes;
+                size = _mEstimatedBytes;
             }
 
-            TimeSpan suggestedWait = mExternalNotification.OnStatusUpdate(Math.Max(0f, Math.Min(1f, bytesProcessed / size)),bytesProcessedSum);
+            var suggestedWait = _mExternalNotification.OnStatusUpdate(Math.Max(0f, Math.Min(1f, bytesProcessed / size)),bytesProcessedSum);
             return suggestedWait;
             //return TimeSpan.FromMilliseconds(suggestedWait.TotalMilliseconds / 2);
         }

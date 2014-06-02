@@ -26,32 +26,32 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-
 using ICSharpCode.SharpZipLib.GZip;
 
-namespace MSBackupPipe.StdPlugins
+namespace MSBackupPipe.StdPlugins.Transform
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Gzip")]
     public class GzipTransform : IBackupTransformer
     {
-        private static Dictionary<string, ParameterInfo> mBackupParamSchema;
-        private static Dictionary<string, ParameterInfo> mRestoreParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MBackupParamSchema;
+        private static readonly Dictionary<string, ParameterInfo> MRestoreParamSchema;
         static GzipTransform()
         {
-            mBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
-            mBackupParamSchema.Add("level", new ParameterInfo(false, false));
-            mRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
+            MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {"level", new ParameterInfo(false, false)}
+            };
+            MRestoreParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase);
         }
 
         #region IBackupTransformer Members
 
         public Stream GetBackupWriter(Dictionary<string, List<string>> config, Stream writeToStream)
         {
-            ParameterInfo.ValidateParams(mBackupParamSchema, config);
+            ParameterInfo.ValidateParams(MBackupParamSchema, config);
 
-            int level = 9;
+            var level = 9;
             List<string> sLevel;
             if (config.TryGetValue("level", out sLevel))
             {
@@ -66,7 +66,7 @@ namespace MSBackupPipe.StdPlugins
                 throw new ArgumentException(string.Format("gzip: Level must be between 1 and 9: {0}", level));
             }
 
-            Console.WriteLine(string.Format("Compressor: gzip - level = {0}", level));
+            Console.WriteLine("Compressor: gzip - level = {0}", level);
             //GZipOutputStream gzos = new GZipOutputStream(writeToStream, 4 * 1024 * 1024);//4mb block write
             var gzipstream = new GZipOutputStream(writeToStream);
             gzipstream.SetLevel(level);
@@ -80,7 +80,7 @@ namespace MSBackupPipe.StdPlugins
 
         public Stream GetRestoreReader(Dictionary<string, List<string>> config, Stream readFromStream)
         {
-            ParameterInfo.ValidateParams(mRestoreParamSchema, config);
+            ParameterInfo.ValidateParams(MRestoreParamSchema, config);
 
             Console.WriteLine(string.Format("Decompressor: gzip"));
 

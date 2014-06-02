@@ -24,27 +24,26 @@ EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 
-
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace MSBackupPipe.Common
 {
+    [Serializable]
     public class ParallelExecutionException : Exception 
     {
-        private IList<Exception> mExceptions = new List<Exception>();
+        private readonly IList<Exception> _mExceptions = new List<Exception>();
       
         public IList<Exception> Exceptions
         {
-            get { return mExceptions; }
+            get { return _mExceptions; }
         }
 
         public bool HasExceptions
         {
             get
             {
-                return mExceptions.Count > 0;
+                return _mExceptions.Count > 0;
             }
         }
     }
