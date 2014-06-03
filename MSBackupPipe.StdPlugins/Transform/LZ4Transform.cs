@@ -69,7 +69,6 @@ namespace MSBackupPipe.StdPlugins.Transform
             Console.WriteLine("Compressor: LZ4");
 
             return new LZ4.LZ4Stream(readFromStream, System.IO.Compression.CompressionMode.Decompress);
-            //return new LZ4.LZ4Stream(readFromStream, System.IO.Compression.CompressionMode.Decompress, false, 1048576);
         }
 
         public string CommandLineHelp

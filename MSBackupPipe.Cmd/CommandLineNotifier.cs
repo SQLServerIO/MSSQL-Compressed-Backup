@@ -102,56 +102,50 @@ namespace MSBackupPipe.Cmd
         /// <param name="bytesRead">the total amount of bytes read</param>
         private static void ReturnByteScale(long bytesRead)
         {
-            string bytesCompleted;
-            string bytesMeasure;
-
-            if(bytesRead <= 0)
-                bytesRead = 1;
-
-            if ((bytesRead / 1024.0) > 1)
+            if (bytesRead <= 0)
             {
-                if ((bytesRead / 1024.0 / 1024) > 1)
-                {
-                    if ((bytesRead / 1024.0 / 1024 / 1024) > 1)
-                    {
-                        if ((bytesRead / 1024.0 / 1024 / 1024 / 1024) > 1)
-                        {
-                            bytesMeasure = " TB Completed.";
-                            bytesCompleted = string.Format("{0:0.00}", (bytesRead / 1024.0 / 1024 / 1024 / 1024));
-                        }
-                        else
-                        {
-                            bytesMeasure = " GB Completed.";
-                            bytesCompleted = string.Format("{0:0.00}", (bytesRead / 1024.0 / 1024 / 1024));
-                        }
-                    }
-                    else
-                    {
-                        bytesMeasure = " MB Completed.";
-                        bytesCompleted = string.Format("{0:0.00}", (bytesRead / 1024.0 / 1024));
-                    }
-                }
-                else
-                {
-                    bytesMeasure = " KB Completed.";
-                    bytesCompleted = string.Format("{0:0.00}", (bytesRead / 1024.0));
-                }
+                Console.Write("1.00 bt Completed.");
             }
             else
             {
-                bytesMeasure = " Completed.";
-                bytesCompleted = string.Format("{0:0.00}", (bytesRead));
+                var bytesMeasure = " bt Completed.";
+                double bytesByUnit;
+                if (bytesRead >= 1099511627776)
+                {
+                    bytesByUnit = bytesRead/1099511627776.00;
+                    bytesMeasure = bytesRead > 1099511627776 ? " TB Completed." : " GB Completed.";
+                }
+                else if (bytesRead >= 1073741824)
+                {
+                    bytesByUnit = bytesRead/1073741824.00;
+                    bytesMeasure = bytesRead > 1099511627776 ? " TB Completed." : " GB Completed.";
+                }
+                else if (bytesRead >= 1048576)
+                {
+                    bytesByUnit = bytesRead / 1048576.00;
+                    bytesMeasure = bytesRead > 1048576 ? " MB Completed." : " KB Completed.";
+                }
+                else if (bytesRead >= 1024)
+                {
+                    bytesByUnit = bytesRead / 1024.00;
+                }
+                else
+                {
+                    bytesByUnit = bytesRead;
+                }
+
+                var bytesCompleted = "";
+                //TODO: BUG apparently there is a possibility that we will get a zero length string back
+                if (string.Format("{0:0.00}", bytesByUnit).Length >= 3)
+                {
+                    bytesCompleted = new string(' ', 6 - string.Format("{0:0.00}", bytesByUnit).Length) + string.Format("{0:0.00}", bytesByUnit);
+                }
+                else if (string.Format("{0:0.00}", bytesByUnit).Length >= 1)
+                {
+                    bytesCompleted = new string(' ', 3) + string.Format("{0:0.00}", bytesByUnit);
+                }
+                Console.Write(bytesCompleted + bytesMeasure);
             }
-            //TODO: BUG apparently there is a possibility that we will get a zero length string back
-            if (bytesCompleted.Length >= 3)
-            {
-                bytesCompleted = new string(' ', 6 - bytesCompleted.Length) + bytesCompleted;
-            }
-            else if (bytesCompleted.Length >= 1)
-            {
-                bytesCompleted = new string(' ', 3) + bytesCompleted;
-            }
-            Console.Write(bytesCompleted + bytesMeasure);
         }
 
 
