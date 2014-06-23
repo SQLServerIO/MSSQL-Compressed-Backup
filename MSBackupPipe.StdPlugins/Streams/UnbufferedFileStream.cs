@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
-using MSBackupPipe.Common.Annotations;
+using System.Threading;
 
-namespace MSBackupPipe.Common
+namespace MSBackupPipe.StdPlugins.Streams
 {
     ///-------------------------------------------------------------------------------------------------
     /// <summary>	Unbuffered file stream. </summary>
@@ -14,40 +14,71 @@ namespace MSBackupPipe.Common
     {
         #region private custom variables
 
-        //4MB is the biggest packet we can get from VDI so I'll start twice that
-        public static int CopyBufferSize = 8 * 1024 * 1024;
-        public static byte[] Buffer = new byte[CopyBufferSize];
-        const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
-        public static long BytesWritten;
-        public FileStream Outfile;
-        public String Outputfilename;
+        //flag to open file handle without caching at all
+        private const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
 
+        //our file stream to disk
+        private Stream _outfile;
+
+        //our file name we need to hold onto for later
+        private readonly String _outputfilename;
+        
+        //our incoming buffer
+        private readonly byte[] _readBuffer;
+
+        //our buffer so we can flush in 512 byte blocks
+        private readonly byte[] _writeBuffer;
+
+        //how full is the write buffer?
+        private int _writeBufferOffset;
+
+        //is the buffer full?
+        private bool _writeBufferFull;
+
+        //how many bytes have we written to the file?
+        private long _bytesWritten;
+
+        //holding variable to help test buffer full state
+        private long _writeLength;
+
+        //locker object
+        private readonly object _lock;
+
+        //write thread
+        private readonly Thread _flushingBuffer;
         #endregion
 
-        /// -------------------------------------------------------------------------------------------------
+
+        public UnBufferedFileStream(String outputfile)
+            : this(outputfile, FileAccess.Write, (1048576 * 32))
+        {
+        }
+
+        /// ---------------------------------------------------------------------------------------------------------------------------------------------------------
         ///  <summary>	Constructor. </summary>
         /// 
-        ///  <remarks>	Wes Brown, 5/26/2009. </remarks>
+        /// <remarks> Wes Brown, 6/03/2014. </remarks>
         /// 
-        ///  <exception cref="ArgumentNullException">	Thrown when one or more required arguments are null
-        ///  											. </exception>
-        ///  <exception cref="ArgumentException">		Thrown when one or more arguments have unsupported
-        ///  											or illegal values. </exception>
-        /// <param name="outputfile"></param>
-        /// <param name="stream">		The stream. </param>
-        /// -------------------------------------------------------------------------------------------------
-        public UnBufferedFileStream(String outputfile,Stream stream)
+        ///  <exception cref="ArgumentNullException">	Thrown when one or more required arguments are null. </exception>
+        ///  <exception cref="ArgumentException">		Thrown when one or more arguments have unsupported or illegal values. </exception>
+        /// <param name="writeMode"></param>
+        /// <param name="bufferSize"></param>
+        /// <param name="outputFile"></param>
+        /// ---------------------------------------------------------------------------------------------------------------------------------------------------------
+        public UnBufferedFileStream(String outputFile, FileAccess writeMode, int bufferSize)
         {
-            if (stream == null)
-                throw new ArgumentNullException("stream");
+            //we use a large buffer to accumliate writes
+            //const int bufferSize = 1048576 * 32;
 
-            if (!stream.CanRead)
-            {
-                throw new ArgumentException (("IO_NotReadable"), "stream");
-            }
-            BaseStream = stream;
-            Outfile = new FileStream(outputfile, FileMode.Create, FileAccess.Write, FileShare.None, CopyBufferSize, FileOptions.WriteThrough | FileFlagNoBuffering);
-            Outputfilename = outputfile;
+            _writeBuffer = new byte[bufferSize];
+            _readBuffer = new byte[bufferSize];
+
+            //open our file without OS or disk buffering.
+            _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024 * 64), FileFlagNoBuffering);
+            _outputfilename = outputFile;
+            _flushingBuffer = new Thread(FlushWriteBuffer);
+            _lock = new object();
+            _flushingBuffer.Start();
         }
 
         // Get the base _stream that underlies this one.
@@ -76,7 +107,7 @@ namespace MSBackupPipe.Common
         {
             get
             {
-                return (BaseStream != null);
+                return true;
             }
         }
 
@@ -90,13 +121,13 @@ namespace MSBackupPipe.Common
             get { return false; }
         }
 
-        public int BufferSize { [UsedImplicitly] private get; set; }
+        public int BufferSize { get; set; }
 
         ///-------------------------------------------------------------------------------------------------
         /// <summary>	When overridden in a derived class, clears all buffers for this stream and causes
         /// 			any buffered data to be written to the underlying device. </summary>
         ///
-        /// <remarks>	Wes Brown, 5/26/2009. </remarks>
+        /// <remarks> Wes Brown, 6/03/2014. </remarks>
         ///
         /// <exception cref="ObjectDisposedException">	Thrown when a supplied object has been disposed. </exception>
         ///
@@ -104,10 +135,6 @@ namespace MSBackupPipe.Common
         ///-------------------------------------------------------------------------------------------------
         public override void Flush()
         {
-            if (BaseStream == null)
-            {
-                throw new ObjectDisposedException(("Exception_Disposed"));
-            }
         }
 
         ///-------------------------------------------------------------------------------------------------
@@ -116,26 +143,7 @@ namespace MSBackupPipe.Common
         ///
         /// <remarks>	
         /// Wes Brown, 5/26/2009. 
-        /// buffer needs to be the block size + 400 _bytes i.e. 1MB + 400b
         /// </remarks>
-        ///
-        /// <param name="buffer">	An array of bytes. When this method returns, the buffer contains the specified byte array with the values between <paramref name="offset" /> and (<paramref name="offset" /> + <paramref name="count" /> - 1)
-        /// 						replaced by the bytes read from the current source. </param> <param name="offset">	The zero-based byte offset in <paramref name="buffer" /> at which to
-        /// 						begin storing the data read from the current stream. </param> <param name="count">	The maximum number of bytes to be read from the current stream. </param>
-        ///
-        /// <returns>	The total number of bytes read into the buffer. This can be less than the number
-        /// 			of bytes requested if that many bytes are not currently available, or zero (0) if
-        /// 			the end of the stream has been reached. </returns>
-        ///
-        /// ### <exception cref="T:System.ArgumentException">			The sum of <paramref name="offset"/> and <paramref name="count" /> is
-        /// 															larger than the buffer length. </exception>### <exception cref="T:System.ArgumentNullException">		<paramref name="buffer" /> is null.
-        /// 															</exception>
-        /// ### <exception cref="T:System.ArgumentOutOfRangeException">	<paramref name="offset" /> or <paramref name="count" /> is negative. </exception>
-        /// ### <exception cref="T:System.IO.IOException">				An I/O error occurs. </exception>
-        /// ### <exception cref="T:System.NotSupportedException">		The stream does not support reading
-        /// 															. </exception>
-        /// ### <exception cref="T:System.ObjectDisposedException">		Methods were called after the strea
-        /// 															m was closed. </exception>
         ///-------------------------------------------------------------------------------------------------
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -146,96 +154,144 @@ namespace MSBackupPipe.Common
         /// <summary>	When overridden in a derived class, writes a sequence of bytes to the current
         /// 			stream and advances the current position within this stream by the number of
         /// 			bytes written. </summary>
-        ///
-        /// <remarks>	Wes Brown, 5/26/2009. </remarks>
-        ///
-        /// <param name="buffer">	An array of bytes. This method copies <paramref name="count" /> bytes
-        /// 						from <paramref name="buffer" /> to the current stream. </param>
-        /// <param name="offset">	The zero-based byte offset in <paramref name="buffer" /> at which to
-        /// 						begin copying bytes to the current stream. </param>
-        /// <param name="count">	The number of bytes to be written to the current stream. </param>
-        ///
-        /// ### <exception cref="T:System.ArgumentException">	The sum of <paramref name="offset" /> and <
-        /// 													paramref name="count" /> is greater than th
-        /// 													e buffer length. </exception>
-        ///
-        /// ### <exception cref="T:System.ArgumentNullException">		<paramref name="buffer" /> is null.
-        /// 															</exception>
-        /// ### <exception cref="T:System.ArgumentOutOfRangeException">	<paramref name="offset" /> or <paramref name="count" /> is negative. </exception>
-        /// ### <exception cref="T:System.IO.IOException">				An I/O error occurs. </exception>
-        /// ### <exception cref="T:System.NotSupportedException">		The stream does not support writing
-        /// 															. </exception>
-        /// ### <exception cref="T:System.ObjectDisposedException">		Methods were called after the strea
-        /// 															m was closed. </exception>
         ///-------------------------------------------------------------------------------------------------
         public override void Write(byte[] buffer, int offset, int count)
         {
-            Outfile.Write(buffer, offset, buffer.Length);
-            BytesWritten += count;
-            Console.WriteLine(BytesWritten);
-            //write to file here
+            while (true)
+            {
+                // we have 3 options here:
+                // buffer can still be filled --> we fill
+                // buffer is full --> we write to file
+                // buffer+incomming will overflow the buffer --> we write to file and put the remainder in the buffer
+                // 1. there is enough room, the buffer is not full
+                _writeLength = _writeBufferOffset + count;
+                if (_writeLength <= _writeBuffer.Length)
+                {
+                    Buffer.BlockCopy(buffer, offset, _writeBuffer, _writeBufferOffset, count);
+                    _writeBufferOffset += count;
+                    // 2. same size: write
+                    if (_writeBufferOffset == _writeBuffer.Length)
+                    {
+                        lock (_lock)
+                        {
+                            Buffer.BlockCopy(_writeBuffer,0,_readBuffer,0,_writeBuffer.Length);
+                            _writeBufferFull = true;
+                        }
+                        _bytesWritten += _writeBuffer.Length;
+                        _writeBufferOffset = 0;
+                    }
+                }
+                // 3. buffer overflow: write full buffer and put remainder in buffer
+                else
+                {
+                    //fill the buffer up
+                    Buffer.BlockCopy(buffer, offset, _writeBuffer, _writeBufferOffset, (_writeBuffer.Length - _writeBufferOffset));
+
+                    lock (_lock)
+                    {
+                        Buffer.BlockCopy(_writeBuffer, 0, _readBuffer, 0, _writeBuffer.Length);
+                        _writeBufferFull = true;
+                    }
+
+                    _bytesWritten += _writeBuffer.Length;
+                    // set the new offset and count to put the remainder of the incoming buffer in our write buffer
+                    offset = offset + (_writeBuffer.Length - _writeBufferOffset);
+                    count = count - (_writeBuffer.Length - _writeBufferOffset);
+                    _writeBufferOffset = 0;
+                    continue;                
+                }
+                break;
+            }
         }
 
         ///-------------------------------------------------------------------------------------------------
         /// <summary>	Releases the unmanaged resources used by the <see cref="T:System.IO.Stream" />
         /// 			and optionally releases the managed resources. </summary>
         ///
-        /// <remarks>	Wes Brown, 5/26/2009. </remarks>
+        /// <remarks> Wes Brown, 6/03/2014. </remarks>
         ///
         /// <param name="disposing">	true to release both managed and unmanaged resources; false to
         /// 							release only unmanaged resources. </param>
         ///-------------------------------------------------------------------------------------------------
         protected override void Dispose(bool disposing)
         {
+            //if we are flushing the write buffer then just wait for a bit.
+            while (_writeBufferFull)
+            {
+                Thread.SpinWait(10);
+            }
             try
             {
-                // Flush on the underlying _stream can throw (ex., low disk space)
-                if (disposing && BaseStream != null)
+                //if we have a partial buffer flush the whole thing to disk.
+                if (_writeBufferOffset > 0)
                 {
-                    Flush();
+                    _outfile.Write(_writeBuffer, 0, _writeBuffer.Length);
+                    _bytesWritten += (_writeBufferOffset);
+                    _writeBufferOffset = 0;
                 }
+
+#if DEBUG
+                Console.WriteLine("BytesWritten :{0}", _bytesWritten);
+#endif
+                //close the file and reset the end of it to the correct byte count.
+                _outfile.Close();
+                _outfile = new FileStream(_outputfilename, FileMode.Open);
+                _outfile.SetLength(_bytesWritten);
+                _outfile.Close();
+
+                if (BaseStream != null) BaseStream.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
             }
             finally
             {
-                try
-                {
-                    // Attempt to close the _stream even if there was an IO error from Flushing.
-                    // be aware that Stream.Close() can potentially throw here may or may not be
-                    // due to the same Flush error). In this case, we still need to ensure 
-                    // cleaning up internal resources, hence the finally block.  
-                    if (disposing && BaseStream != null)
-                    {
-                        Outfile.Close();
-                        Outfile = new FileStream(Outputfilename, FileMode.Open, FileAccess.Write, FileShare.None, CopyBufferSize, FileOptions.WriteThrough);
-                        Outfile.SetLength(BytesWritten);
-                        Outfile.Flush();
-                        Outfile.Close();
+                //kill the thread that is doing the flushing work.
+                _flushingBuffer.Abort();
+                BaseStream = null;
+                base.Dispose(disposing);
+            }
+        }
 
-                        BaseStream.Close();
+        
+        //------------------------------------custom to our _stream---------------------------------------------
+        //private helpters for read and write methods
+
+        /// -------------------------------------------------------------------------------------------------
+        /// write thread function
+        /// -------------------------------------------------------------------------------------------------
+        private void FlushWriteBuffer()
+        {
+            while (true)
+            {
+                if (_writeBufferFull)
+                {
+                    lock (_lock)
+                    {
+                        //write out whole buffer
+                        _outfile.Write(_readBuffer, 0, _readBuffer.Length);
+                        //set the clear flag
+                        _writeBufferFull = false;
                     }
                 }
-                finally
+                else
                 {
-                    BaseStream = null;
-                    base.Dispose(disposing);
+                    Thread.SpinWait(10);
                 }
             }
         }
 
         //------------------------------------custom to our _stream---------------------------------------------
-        //private helpters for read and write methods
+
+        #region unsupported methods
+
         ///-------------------------------------------------------------------------------------------------
-        /// <summary>	Get the length of the expected uncompressed stream. </summary>
-        ///
-        /// <value>	long Length. </value>
         ///-------------------------------------------------------------------------------------------------
         public override long Length
         {
             get { throw new NotSupportedException(("IO_NotSupp_Seek")); }
         }
-
-        #region unsupported methods
-        // Get or set the current seek position within this _stream.
 
         ///-------------------------------------------------------------------------------------------------
         /// <summary>	Gets or sets the position. </summary>
@@ -251,7 +307,7 @@ namespace MSBackupPipe.Common
         ///-------------------------------------------------------------------------------------------------
         /// <summary>	When overridden in a derived class, sets the position within the current stream. </summary>
         ///
-        /// <remarks>	Wes Brown, 5/26/2009. </remarks>
+        /// <remarks> Wes Brown, 6/03/2014. </remarks>
         ///
         /// <exception cref="NotSupportedException">	Thrown when the requested operation is not supporte
         /// 											d. </exception>
@@ -277,7 +333,7 @@ namespace MSBackupPipe.Common
         ///-------------------------------------------------------------------------------------------------
         /// <summary>	When overridden in a derived class, sets the length of the current stream. </summary>
         ///
-        /// <remarks>	Wes Brown, 5/26/2009. </remarks>
+        /// <remarks> Wes Brown, 6/03/2014. </remarks>
         ///
         /// <exception cref="NotSupportedException">	Thrown when the requested operation is not supporte
         /// 											d. </exception>
@@ -303,7 +359,7 @@ namespace MSBackupPipe.Common
         ///-------------------------------------------------------------------------------------------------
         /// <summary>	Begins an asynchronous read operation. </summary>
         ///
-        /// <remarks>	Wes Brown, 5/26/2009. </remarks>
+        /// <remarks> Wes Brown, 6/03/2014. </remarks>
         ///
         /// <exception cref="NotSupportedException">	Thrown when the requested operation is not supporte
         /// 											d. </exception>

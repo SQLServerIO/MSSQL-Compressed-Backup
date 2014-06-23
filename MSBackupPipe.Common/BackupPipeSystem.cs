@@ -32,6 +32,7 @@ using System.IO;
 
 //Additional includes other than default dot net framework should go here.
 using MSBackupPipe.StdPlugins;
+using MSBackupPipe.StdPlugins.Streams;
 using VdiNet.VirtualBackupDevice;
 
 namespace MSBackupPipe.Common
@@ -188,7 +189,6 @@ namespace MSBackupPipe.Common
                                     }
 
                                     updateNotifier.OnStart();
-                                    //Console.WriteLine(string.Format("{0} started", isBackup ? "Backup" : "Restore"));
 
                                     var sqlE = sql.EndExecute();
                                     sqlFinished = true;
@@ -198,10 +198,7 @@ namespace MSBackupPipe.Common
                                         exceptions.Exceptions.Add(sqlE);
                                     }
 
-                                    foreach (
-                                        var devE in
-                                            threads.Select(dThread => dThread.EndCopy())
-                                                .Where(devE => devE != null))
+                                    foreach (var devE in threads.Select(dThread => dThread.EndCopy()).Where(devE => devE != null))
                                     {
                                         exceptions.Exceptions.Add(devE);
                                     }
@@ -290,15 +287,13 @@ namespace MSBackupPipe.Common
                     var config = pipelineConfig[i];
 
                     var constructorInfo = config.TransformationType.GetConstructor(new Type[0]);
-                    if (constructorInfo != null)
+                    if (constructorInfo == null) continue;
+                    var tran = constructorInfo.Invoke(new object[0]) as IBackupTransformer;
+                    if (tran == null)
                     {
-                        var tran = constructorInfo.Invoke(new object[0]) as IBackupTransformer;
-                        if (tran == null)
-                        {
-                            throw new ArgumentException(string.Format("Unable to create pipe component: {0}", config.TransformationType.Name));
-                        }
-                        topStream = isBackup ? tran.GetBackupWriter(config.Parameters, topStream) : tran.GetRestoreReader(config.Parameters, topStream);
+                        throw new ArgumentException(string.Format("Unable to create pipe component: {0}", config.TransformationType.Name));
                     }
+                    topStream = isBackup ? tran.GetBackupWriter(config.Parameters, topStream) : tran.GetRestoreReader(config.Parameters, topStream);
                 }
 
                 if (isBackup)

@@ -476,6 +476,7 @@ namespace MSBackupPipe.Common
 
         public void Dispose()
         {
+            Dispose(true);
             GC.SuppressFinalize(this);
         }
 

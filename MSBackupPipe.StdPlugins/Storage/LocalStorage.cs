@@ -28,6 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MSBackupPipe.StdPlugins.Streams;
 
 namespace MSBackupPipe.StdPlugins.Storage
 {
@@ -85,7 +86,15 @@ namespace MSBackupPipe.StdPlugins.Storage
             }
 
             var results = new List<Stream>(fileInfos.Count);
-            results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Create)));
+            //my unbuffered filestream.
+            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Write, (1048576 * 32))));
+
+            //NULL stream this is just for testing speed of data flow without writing to disk.
+            //results.AddRange(fileInfos.Select(fi => new NullStream()));
+            
+            //native .net FileStream uses OS buffer
+            //results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Create)));
+
             //TODO: preallocate file to speed up writes and cut down on fragmentations
             //TODO: add unbuffered IO to speed up writes and cut down on memory usage
 

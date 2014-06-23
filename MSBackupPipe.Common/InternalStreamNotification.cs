@@ -37,6 +37,7 @@ namespace MSBackupPipe.Common
         private long _mEstimatedBytes = 1;
         private readonly IList<long> _mBytesProcessed = new List<long>();
         private int _mLastThreadIdUsed = -1;
+        private readonly object _locker = new object();
 
         public InternalStreamNotification(IUpdateNotification notification)
         {
@@ -47,14 +48,14 @@ namespace MSBackupPipe.Common
         {
             get
             {
-                lock (this)
+                lock (_locker)
                 {
                     return _mEstimatedBytes;
                 }
             }
             set
             {
-                lock (this)
+                lock (_locker)
                 {
                     _mEstimatedBytes = Math.Max(1, value);
                 }
@@ -63,7 +64,7 @@ namespace MSBackupPipe.Common
 
         public int GetThreadId()
         {
-            lock (this)
+            lock (_locker)
             {
                 _mLastThreadIdUsed++;
                 _mBytesProcessed.Add(0);
@@ -81,7 +82,7 @@ namespace MSBackupPipe.Common
             float bytesProcessed;
             float size;
             long bytesProcessedSum;
-            lock (this)
+            lock (_locker)
             {
                 _mBytesProcessed[threadId] = totalBytesProcessedByThread;
                 bytesProcessedSum = _mBytesProcessed.Sum();

@@ -90,56 +90,55 @@ namespace MSBackupPipe.Common
         {
             while (device.GetCommand(null, buff))
             {
-                if (!buff.TimedOut)
+                if (buff.TimedOut) continue;
+
+                var completionCode = CompletionCode.DiskFull;
+                uint bytesTransferred = 0;
+
+                try
                 {
-                    var completionCode = CompletionCode.DiskFull;
-                    uint bytesTransferred = 0;
-
-                    try
+                    switch (buff.CommandType)
                     {
-                        switch (buff.CommandType)
-                        {
-                            case DeviceCommandType.Write:
+                        case DeviceCommandType.Write:
 
-                                if (!isBackup)
-                                {
-                                    throw new InvalidOperationException("Cannot write in 'restore' mode");
-                                }
+                            if (!isBackup)
+                            {
+                                throw new InvalidOperationException("Cannot write in 'restore' mode");
+                            }
 
-                                bytesTransferred = (uint)buff.WriteToStream(stream);
+                            bytesTransferred = (uint)buff.WriteToStream(stream);
 
-                                completionCode = CompletionCode.Success;
+                            completionCode = CompletionCode.Success;
 
-                                break;
-                            case DeviceCommandType.Read:
+                            break;
+                        case DeviceCommandType.Read:
 
-                                if (isBackup)
-                                {
-                                    throw new InvalidOperationException("Cannot read in 'backup' mode");
-                                }
+                            if (isBackup)
+                            {
+                                throw new InvalidOperationException("Cannot read in 'backup' mode");
+                            }
 
-                                bytesTransferred = (uint)buff.ReadFromStream(stream);
+                            bytesTransferred = (uint)buff.ReadFromStream(stream);
 
-                                completionCode = bytesTransferred > 0 ? CompletionCode.Success : CompletionCode.HandleEof;
+                            completionCode = bytesTransferred > 0 ? CompletionCode.Success : CompletionCode.HandleEof;
 
-                                break;
-                            case DeviceCommandType.ClearError:
-                                completionCode = CompletionCode.Success;
-                                break;
+                            break;
+                        case DeviceCommandType.ClearError:
+                            completionCode = CompletionCode.Success;
+                            break;
 
-                            case DeviceCommandType.Flush:
-                                stream.Flush();
-                                completionCode = CompletionCode.Success;
-                                break;
+                        case DeviceCommandType.Flush:
+                            stream.Flush();
+                            completionCode = CompletionCode.Success;
+                            break;
 
-                            default:
-                                throw new ArgumentException(string.Format("Unknown command: {0}", buff.CommandType));
-                        }
+                        default:
+                            throw new ArgumentException(string.Format("Unknown command: {0}", buff.CommandType));
                     }
-                    finally
-                    {
-                        device.CompleteCommand(buff, completionCode, bytesTransferred, 0);
-                    }
+                }
+                finally
+                {
+                    device.CompleteCommand(buff, completionCode, bytesTransferred, 0);
                 }
             }
         }
@@ -148,6 +147,7 @@ namespace MSBackupPipe.Common
 
         public void Dispose()
         {
+            Dispose(true);
             GC.SuppressFinalize(this);
         }
 

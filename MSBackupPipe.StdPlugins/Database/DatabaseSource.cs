@@ -60,7 +60,8 @@ namespace MSBackupPipe.StdPlugins.Database
                 {"CONTINUE_AFTER_ERROR", new ParameterInfo(false, false)},
                 {"BUFFERCOUNT", new ParameterInfo(false, false)},
                 {"MAXTRANSFERSIZE", new ParameterInfo(false, false)},
-                {"BLOCKSIZE", new ParameterInfo(false, false)}
+                {"BLOCKSIZE", new ParameterInfo(false, false)},
+                {"STATS", new ParameterInfo(false, false)}
             };
             //TODO: enable switch to turn stats reporting on or off
             //mBackupParamSchema.Add("STATS", new ParameterInfo(false, false));

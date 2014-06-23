@@ -133,6 +133,11 @@ namespace MSBackupPipe.Cmd
                             //this is so we can do a restore filelistonly and restore headeronly
                             HeaderFileList.WriteHeaderFilelist(databaseConfig, storageConfig, devicenames);
 
+#if DEBUG
+                            Console.WriteLine();
+                            Console.WriteLine("Hit Any Key To Continue:");
+                            Console.ReadKey();
+#endif
                             return 0;
                         }
                         catch (ParallelExecutionException ee)
@@ -398,6 +403,7 @@ namespace MSBackupPipe.Cmd
                 PrintHelp.PrintUsage();
                 return -1;
             }
+
         }
 
         private static void HandleExecutionExceptions(ParallelExecutionException ee, bool isBackup)

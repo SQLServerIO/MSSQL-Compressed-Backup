@@ -24,10 +24,11 @@ EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \*************************************************************************************/
 //TODO: Switch to turn off tracking stream
+
 using System;
 using System.IO;
 
-namespace MSBackupPipe.StdPlugins
+namespace MSBackupPipe.StdPlugins.Streams
 {
     public class TrackingStream : Stream
     {
@@ -76,6 +77,7 @@ namespace MSBackupPipe.StdPlugins
         protected override void Dispose(bool disposing)
         {
             _mSourceStream.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public override int EndRead(IAsyncResult asyncResult)
