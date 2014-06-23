@@ -37,6 +37,7 @@ namespace MSBackupPipe.Cmd
         private DateTime _mStartTime = DateTime.UtcNow;
 
         private readonly TimeSpan _mMinTimeForUpdate = TimeSpan.FromSeconds(1.2);
+        private readonly object _locker = new object();
 
         public CommandLineNotifier(bool isBackup)
         {
@@ -50,7 +51,7 @@ namespace MSBackupPipe.Cmd
 
         public void OnStart()
         {
-            lock (this)
+            lock (_locker)
             {
                 Console.WriteLine("{0} has started", _mIsBackup ? "Backup" : "Restore");
                 _mNextNotificationTimeUtc = DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(10));
@@ -62,7 +63,7 @@ namespace MSBackupPipe.Cmd
         {
             var utcNow = DateTime.UtcNow;
 
-            lock (this)
+            lock (_locker)
             {
                 if (_mNextNotificationTimeUtc < utcNow && utcNow - _mStartTime > _mMinTimeForUpdate)
                 {
@@ -109,38 +110,46 @@ namespace MSBackupPipe.Cmd
             else
             {
                 var bytesMeasure = " bt Completed.";
-                double bytesByUnit;
+                decimal bytesByUnit;
                 if (bytesRead >= 1099511627776)
                 {
-                    bytesByUnit = bytesRead/1099511627776.00;
+                    bytesByUnit = bytesRead/1099511627776.0m;
                     bytesMeasure = bytesRead > 1099511627776 ? " TB Completed." : " GB Completed.";
                 }
                 else if (bytesRead >= 1073741824)
                 {
-                    bytesByUnit = bytesRead/1073741824.00;
+                    bytesByUnit = bytesRead/1073741824.0m;
                     bytesMeasure = bytesRead > 1099511627776 ? " TB Completed." : " GB Completed.";
                 }
                 else if (bytesRead >= 1048576)
                 {
-                    bytesByUnit = bytesRead / 1048576.00;
+                    bytesByUnit = bytesRead/1048576.0m;
                     bytesMeasure = bytesRead > 1048576 ? " MB Completed." : " KB Completed.";
                 }
                 else if (bytesRead >= 1024)
                 {
-                    bytesByUnit = bytesRead / 1024.00;
+                    bytesByUnit = bytesRead/1024.0m;
                 }
                 else
                 {
                     bytesByUnit = bytesRead;
                 }
-
                 var bytesCompleted = "";
                 //TODO: BUG apparently there is a possibility that we will get a zero length string back
-                if (string.Format("{0:0.00}", bytesByUnit).Length >= 3)
+                //FIXED: BUG had to do with a large number coming back where the first digits were more than 3. so 
+                // if bytesByUnit = 1001.123324523654 came back then it would blow up the call to new string() with a lenght error.
+                if (string.Format("{0:0.00}", bytesByUnit).Length <= 7)
                 {
-                    bytesCompleted = new string(' ', 6 - string.Format("{0:0.00}", bytesByUnit).Length) + string.Format("{0:0.00}", bytesByUnit);
+                    bytesCompleted = new string(' ', 7 - string.Format("{0:0.00}", bytesByUnit).Length) +
+                                     string.Format("{0:0.00}", bytesByUnit);
                 }
-                else if (string.Format("{0:0.00}", bytesByUnit).Length >= 1)
+                else if (string.Format("{0:0.00}", bytesByUnit).Length <= 3)
+                {
+                    bytesCompleted = new string(' ', 6 - string.Format("{0:0.00}", bytesByUnit).Length) +
+                                     string.Format("{0:0.00}", bytesByUnit);
+                }
+                else if ((string.Format("{0:0.00}", bytesByUnit).Length >= 1) &&
+                         (string.Format("{0:0.00}", bytesByUnit).Length <= 3))
                 {
                     bytesCompleted = new string(' ', 3) + string.Format("{0:0.00}", bytesByUnit);
                 }
@@ -159,15 +168,15 @@ namespace MSBackupPipe.Cmd
         private static TimeSpan CalculateNextNotification(TimeSpan elapsedTime)
         {
             //DO NOT set this number too high it is what can lead to the race condition and kill the stream.
-            if (elapsedTime.TotalSeconds < 3)
+            if (elapsedTime.TotalSeconds < 30)
             {
-                return TimeSpan.FromSeconds(1.2);
+                return TimeSpan.FromSeconds(2);
             }
-            if ((elapsedTime.TotalSeconds * 0.4) > 60)
+            if ((elapsedTime.TotalSeconds * 0.2) > 60)
             {
                 return TimeSpan.FromSeconds(60);
             }
-            var secondsDelay = elapsedTime.TotalSeconds * 0.4;
+            var secondsDelay = elapsedTime.TotalSeconds * 0.2;
             return TimeSpan.FromSeconds(secondsDelay);
         }
     }
