@@ -67,18 +67,30 @@ namespace MSBackupPipe.StdPlugins.Streams
         /// ---------------------------------------------------------------------------------------------------------------------------------------------------------
         public UnBufferedFileStream(String outputFile, FileAccess writeMode, int bufferSize)
         {
-            //we use a large buffer to accumliate writes
-            //const int bufferSize = 1048576 * 32;
-
             _writeBuffer = new byte[bufferSize];
             _readBuffer = new byte[bufferSize];
 
-            //open our file without OS or disk buffering.
-            _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024 * 64), FileFlagNoBuffering);
-            _outputfilename = outputFile;
-            _flushingBuffer = new Thread(FlushWriteBuffer);
             _lock = new object();
-            _flushingBuffer.Start();
+            //save our file name for later when we need to flush the tail and set the size.
+            _outputfilename = outputFile;
+
+            //open our file without OS or disk buffering.
+            switch (writeMode)
+            {
+                case FileAccess.Write:
+                    //open file for unbuffered writes
+                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024*64),FileFlagNoBuffering);
+                    //start the write buffer flush thread
+                    _flushingBuffer = new Thread(FlushWriteBuffer);
+                    _flushingBuffer.Start();
+                    break;
+                case FileAccess.Read:
+                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Read, FileShare.None, (1024*64),FileFlagNoBuffering);
+                    break;
+            }
+
+
+
         }
 
         // Get the base _stream that underlies this one.
