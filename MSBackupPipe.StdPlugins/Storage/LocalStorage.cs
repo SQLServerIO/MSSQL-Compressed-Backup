@@ -60,8 +60,9 @@ namespace MSBackupPipe.StdPlugins.Storage
             return config["path"].Count;
         }
 
-        public Stream[] GetBackupWriter(Dictionary<string, List<string>> config)
+        public Stream[] GetBackupWriter(Dictionary<string, List<string>> config, long estimatedTotalBytes)
         {
+            Console.WriteLine(estimatedTotalBytes);
             _mDeleteOnAbort.Clear();
             _mFileInfosToDeleteOnAbort.Clear();
 
@@ -85,9 +86,10 @@ namespace MSBackupPipe.StdPlugins.Storage
                 Console.WriteLine("path={0}", fi.FullName);
             }
 
+            var preAllocationSize = estimatedTotalBytes / 2 / fileInfos.Count;
             var results = new List<Stream>(fileInfos.Count);
             //my unbuffered filestream.
-            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Write, (1024*1024*32))));
+            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Write, (1024 * 1024 * 32), preAllocationSize)));
 
             //NULL stream this is just for testing speed of data flow without writing to disk.
             //results.AddRange(fileInfos.Select(fi => new NullStream()));
@@ -96,7 +98,6 @@ namespace MSBackupPipe.StdPlugins.Storage
             //results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Create)));
 
             //TODO: preallocate file to speed up writes and cut down on fragmentations
-            //TODO: add unbuffered IO to speed up writes and cut down on memory usage
 
             return results.ToArray();
         }

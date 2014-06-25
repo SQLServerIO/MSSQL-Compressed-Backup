@@ -56,7 +56,7 @@ namespace MSBackupPipe.StdPlugins.Streams
 
 
         public UnBufferedFileStream(String outputfile)
-            : this(outputfile, FileAccess.Write, (1048576 * 32))
+            : this(outputfile, FileAccess.Write, (1048576 * 32),(1024*1024))
         {
         }
 
@@ -71,7 +71,7 @@ namespace MSBackupPipe.StdPlugins.Streams
         /// <param name="bufferSize"></param>
         /// <param name="outputFile"></param>
         /// ---------------------------------------------------------------------------------------------------------------------------------------------------------
-        public UnBufferedFileStream(String outputFile, FileAccess writeMode, int bufferSize)
+        public UnBufferedFileStream(String outputFile, FileAccess writeMode, int bufferSize, long estimatedTotalBytes)
         {
             _writeBuffer = new byte[bufferSize];
             _readBuffer = new byte[bufferSize];
@@ -86,8 +86,12 @@ namespace MSBackupPipe.StdPlugins.Streams
             switch (writeMode)
             {
                 case FileAccess.Write:
-                    //open file for unbuffered writes
-                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024 * 64), FileFlagNoBuffering);
+                    //open file and set the lenght to preallocate the file.
+                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024 * 64), false);
+                    _outfile.SetLength(estimatedTotalBytes);
+                    _outfile.Close();
+                    //open the file with no buffering to write to it.
+                    _outfile = new FileStream(outputFile, FileMode.Open, FileAccess.Write, FileShare.None, (1024 * 64), FileFlagNoBuffering);
                     //start the write buffer flush thread
                     _flushingBuffer = new Thread(FlushWriteBuffer);
                     _flushingBuffer.Start();

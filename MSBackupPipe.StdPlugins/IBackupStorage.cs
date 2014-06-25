@@ -31,7 +31,7 @@ namespace MSBackupPipe.StdPlugins
 {
     public interface IBackupStorage : IBackupPlugin
     {
-        Stream[] GetBackupWriter(Dictionary<string, List<string>> config);
+        Stream[] GetBackupWriter(Dictionary<string, List<string>> config, long estimatedTotalBytes);
         Stream[] GetRestoreReader(Dictionary<string, List<string>> config, out long estimatedTotalBytes);
         int GetNumberOfDevices(Dictionary<string, List<string>> config);
         void CleanupOnAbort();

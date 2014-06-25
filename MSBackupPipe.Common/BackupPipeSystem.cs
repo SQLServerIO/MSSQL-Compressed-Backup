@@ -152,7 +152,7 @@ namespace MSBackupPipe.Common
                             using (
                                 var fileStreams =
                                     new DisposableList<Stream>(isBackup
-                                        ? storage.GetBackupWriter(storageConfig.Parameters)
+                                        ? storage.GetBackupWriter(storageConfig.Parameters, estimatedTotalBytes)
                                         : storage.GetRestoreReader(storageConfig.Parameters,
                                             out estimatedTotalBytes)))
                             using (
