@@ -87,7 +87,7 @@ namespace MSBackupPipe.StdPlugins.Storage
 
             var results = new List<Stream>(fileInfos.Count);
             //my unbuffered filestream.
-            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Write, (1048576 * 32))));
+            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Write, (1024*1024*32))));
 
             //NULL stream this is just for testing speed of data flow without writing to disk.
             //results.AddRange(fileInfos.Select(fi => new NullStream()));

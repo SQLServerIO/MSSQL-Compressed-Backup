@@ -40,6 +40,7 @@ namespace MSBackupPipe.StdPlugins.Database
         private static readonly Dictionary<string, ParameterInfo> MRestoreParamSchema;
         private static readonly Dictionary<string, ParameterInfo> MVerifyParamSchema;
 
+        //TODO: make case insensitive for key words to cut down on false syntax errors.
         static DatabaseSource()
         {
             MBackupParamSchema = new Dictionary<string, ParameterInfo>(StringComparer.InvariantCultureIgnoreCase)
