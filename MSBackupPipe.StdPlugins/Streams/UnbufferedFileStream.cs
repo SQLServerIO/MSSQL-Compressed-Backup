@@ -52,6 +52,8 @@ namespace MSBackupPipe.StdPlugins.Streams
 
         //write thread
         private readonly Thread _flushingBuffer;
+
+        private readonly FileAccess _writeMode;
         #endregion
 
 
@@ -76,7 +78,7 @@ namespace MSBackupPipe.StdPlugins.Streams
             _writeBuffer = new byte[bufferSize];
             _readBuffer = new byte[bufferSize];
             _flipBuffer = new byte[bufferSize];
-
+            _writeMode = writeMode;
             _lock = new object();
             
             //save our file name for later when we need to flush the tail and set the size.
@@ -86,12 +88,9 @@ namespace MSBackupPipe.StdPlugins.Streams
             switch (writeMode)
             {
                 case FileAccess.Write:
-                    //open file and set the lenght to preallocate the file.
-                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024 * 64), false);
-                    _outfile.SetLength(estimatedTotalBytes);
-                    _outfile.Close();
                     //open the file with no buffering to write to it.
-                    _outfile = new FileStream(outputFile, FileMode.Open, FileAccess.Write, FileShare.None, (1024 * 64), FileFlagNoBuffering);
+                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024 * 64), FileFlagNoBuffering);
+                    _outfile.SetLength(estimatedTotalBytes);
                     //start the write buffer flush thread
                     _flushingBuffer = new Thread(FlushWriteBuffer);
                     _flushingBuffer.Start();
@@ -168,52 +167,8 @@ namespace MSBackupPipe.StdPlugins.Streams
         ///-------------------------------------------------------------------------------------------------
         public override int Read(byte[] buffer, int offset, int count)
         {
-            while (true)
-            {
-                // we have 3 options here:
-                // buffer can still be filled --> we fill
-                // buffer is full --> we write to file
-                // buffer+incomming will overflow the buffer --> we write to file and put the remainder in the buffer
-                // 1. there is enough room, the buffer is not full
-                _writeLength = _writeBufferOffset + count;
-                if (_writeLength <= _writeBuffer.Length)
-                {
-                    Buffer.BlockCopy(buffer, offset, _writeBuffer, _writeBufferOffset, count);
-                    _writeBufferOffset += count;
-                    // 2. same size: write
-                    if (_writeBufferOffset == _writeBuffer.Length)
-                    {
-                        lock (_lock)
-                        {
-                            Buffer.BlockCopy(_writeBuffer, 0, _readBuffer, 0, _writeBuffer.Length);
-                            _writeBufferFull = true;
-                        }
-                        _bytesWritten += _writeBuffer.Length;
-                        _writeBufferOffset = 0;
-                    }
-                }
-                // 3. buffer overflow: write full buffer and put remainder in buffer
-                else
-                {
-                    //fill the buffer up
-                    Buffer.BlockCopy(buffer, offset, _writeBuffer, _writeBufferOffset, (_writeBuffer.Length - _writeBufferOffset));
-
-                    lock (_lock)
-                    {
-                        Buffer.BlockCopy(_writeBuffer, 0, _readBuffer, 0, _writeBuffer.Length);
-                        _writeBufferFull = true;
-                    }
-
-                    _bytesWritten += _writeBuffer.Length;
-                    // set the new offset and count to put the remainder of the incoming buffer in our write buffer
-                    offset = offset + (_writeBuffer.Length - _writeBufferOffset);
-                    count = count - (_writeBuffer.Length - _writeBufferOffset);
-                    _writeBufferOffset = 0;
-                    continue;
-                }
-                break;
-            }
-            return 1;
+            _outfile.Read(_readBuffer, 0, _readBuffer.Length);
+            return _readBuffer.Length;
         }
 
         ///-------------------------------------------------------------------------------------------------
@@ -281,42 +236,52 @@ namespace MSBackupPipe.StdPlugins.Streams
         ///-------------------------------------------------------------------------------------------------
         protected override void Dispose(bool disposing)
         {
-            //if we are flushing the write buffer then just wait for a bit.
-            while (_flipBufferFull || _writeBufferFull)
+            switch (_writeMode)
             {
-                Thread.SpinWait(10);
-            }
-            try
-            {
-                //if we have a partial buffer flush the whole thing to disk.
-                if (_writeBufferOffset > 0)
-                {
-                    _outfile.Write(_writeBuffer, 0, _writeBuffer.Length);
-                    _bytesWritten += (_writeBufferOffset);
-                    _writeBufferOffset = 0;
-                }
+                case FileAccess.Write:
+                    //if we are flushing the write buffer then just wait for a bit.
+                    while (_flipBufferFull || _writeBufferFull)
+                    {
+                        Thread.SpinWait(10);
+                    }
+                    try
+                    {
+                        //if we have a partial buffer flush the whole thing to disk.
+                        if (_writeBufferOffset > 0)
+                        {
+                            _outfile.Write(_writeBuffer, 0, _writeBuffer.Length);
+                            _bytesWritten += (_writeBufferOffset);
+                            _writeBufferOffset = 0;
+                        }
 
 #if DEBUG
-                Console.WriteLine("BytesWritten :{0}", _bytesWritten);
+                        Console.WriteLine("BytesWritten :{0}", _bytesWritten);
 #endif
-                //close the file and reset the end of it to the correct byte count.
-                _outfile.Close();
-                _outfile = new FileStream(_outputfilename, FileMode.Open);
-                _outfile.SetLength(_bytesWritten);
-                _outfile.Close();
+                        //close the file and reset the end of it to the correct byte count.
+                        _outfile.Close();
+                        _outfile = new FileStream(_outputfilename, FileMode.Open);
+                        _outfile.SetLength(_bytesWritten);
+                        _outfile.Close();
 
-                if (BaseStream != null) BaseStream.Close();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            finally
-            {
-                //kill the thread that is doing the flushing work.
-                _flushingBuffer.Abort();
-                BaseStream = null;
-                base.Dispose(disposing);
+                        if (BaseStream != null) BaseStream.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
+                    finally
+                    {
+                        //kill the thread that is doing the flushing work.
+                        _flushingBuffer.Abort();
+                        BaseStream = null;
+                        base.Dispose(disposing);
+                    }
+                    break;
+                case FileAccess.Read:
+                    {
+                        _outfile.Close();
+                    }
+                    break;
             }
         }
 
