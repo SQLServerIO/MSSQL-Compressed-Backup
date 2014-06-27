@@ -170,7 +170,7 @@ namespace MSBackupPipe.Common
                                 deviceSet.CreateEx(instanceName, deviceSetName, config);
                                 sql.BeginExecute();
                                 sqlStarted = true;
-                                deviceSet.GetConfiguration(TimeSpan.FromMinutes(1));
+                                deviceSet.GetConfiguration(TimeSpan.FromMinutes(360));
                                 var devices = deviceNames.Select(deviceSet.OpenDevice).ToList();
 
                                 returndevices = deviceNames;

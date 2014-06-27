@@ -69,11 +69,11 @@ namespace MSBackupPipe.Common
             string connectionString;
             if (databaseConfig.Parameters.ContainsKey("user"))
             {
-                connectionString = databaseConfig.Parameters.ContainsKey("password") ? String.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0], databaseConfig.Parameters["password"][0]) : String.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, databaseConfig.Parameters["user"][0], null);
+                connectionString = databaseConfig.Parameters.ContainsKey("password") ? String.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Connect Timeout=2147483647;", dataSource, databaseConfig.Parameters["user"][0], databaseConfig.Parameters["password"][0]) : String.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Connect Timeout=2147483647;", dataSource, databaseConfig.Parameters["user"][0], null);
             }
             else
             {
-                connectionString = String.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;", dataSource);
+                connectionString = String.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;Connect Timeout=2147483647;", dataSource);
             }
 
             int majorVersionNum;
@@ -295,10 +295,11 @@ namespace MSBackupPipe.Common
             {
                 using (var mCnn = new SqlConnection(connectionString))
                 {
-                    var adapter = new SqlDataAdapter
-                    {
-                        SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn)
-                    };
+
+
+                    var SelectCommand = new SqlCommand(fileListHeaderOnlyQuery.ToString(), mCnn);
+                    SelectCommand.CommandTimeout = 0;
+                    var adapter = new SqlDataAdapter(SelectCommand);
                     mCnn.Open();
                     adapter.Fill(headerFileList);
                     adapter.Dispose();
@@ -318,6 +319,7 @@ namespace MSBackupPipe.Common
         {
             using (var cmd = new SqlCommand("SELECT @@version;", cnn))
             {
+                cmd.CommandTimeout = 0;
                 cnn.Open();
                 return cmd.ExecuteScalar().ToString();
             }

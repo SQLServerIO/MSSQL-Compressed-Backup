@@ -88,7 +88,8 @@ namespace MSBackupPipe.Common
 
         private static void ReadWriteData(IVirtualDevice device, ICommandBuffer buff, Stream stream, bool isBackup)
         {
-            while (device.GetCommand(null, buff))
+            TimeSpan connectionTimeOut =  new TimeSpan(0, 0, 0);
+            while (device.GetCommand(connectionTimeOut, buff))
             {
                 if (buff.TimedOut) continue;
 

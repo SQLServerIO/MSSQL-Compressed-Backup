@@ -129,7 +129,7 @@ namespace MSBackupPipe.StdPlugins.Database
 
             var param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255) {Value = config["database"][0]};
             cmd.Parameters.Add(param);
-
+            cmd.CommandTimeout = 0;
             // default values:
             var backupType = BackupType.Full;
 
@@ -376,7 +376,7 @@ namespace MSBackupPipe.StdPlugins.Database
 
             var param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255) {Value = config["database"][0]};
             cmd.Parameters.Add(param);
-
+            cmd.CommandTimeout = 0;
             // default values:
             var restoreType = RestoreType.Database;
 
@@ -680,7 +680,7 @@ namespace MSBackupPipe.StdPlugins.Database
 
             var param = new SqlParameter("@databasename", SqlDbType.NVarChar, 255) {Value = config["database"][0]};
             cmd.Parameters.Add(param);
-
+            cmd.CommandTimeout = 0;
             var withOptions = new List<string>();
             //var filegroupOptions = new List<string>();
 

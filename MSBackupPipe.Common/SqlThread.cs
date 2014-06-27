@@ -49,7 +49,7 @@ namespace MSBackupPipe.Common
         {
             var serverConnectionName = clusterNetworkName ?? ".";
             var dataSource = string.IsNullOrEmpty(instanceName) ? serverConnectionName : string.Format(@"{0}\{1}", serverConnectionName, instanceName);
-            var connectionString = dbConfig.ContainsKey("user") ? string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;", dataSource, dbConfig["user"][0], dbConfig.ContainsKey("password") ? dbConfig["password"][0] : null) : string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;Asynchronous Processing=true;",dataSource);
+            var connectionString = dbConfig.ContainsKey("user") ? string.Format("Data Source={0};Initial Catalog=master;Integrated Security=False;User ID={1};Password={2};Asynchronous Processing=true;;Connect Timeout=2147483647", dataSource, dbConfig["user"][0], dbConfig.ContainsKey("password") ? dbConfig["password"][0] : null) : string.Format("Data Source={0};Initial Catalog=master;Integrated Security=True;Asynchronous Processing=true;Connect Timeout=2147483647", dataSource);
             
 
             notifier.OnConnecting(string.Format("Connecting: {0}", connectionString));
@@ -120,23 +120,26 @@ namespace MSBackupPipe.Common
             if (backupType == "full")
             {
                 using (var cmd = new SqlCommand(string.Format("use [{0}]; exec sp_spaceused", databaseName), cnn))
-                using (var reader = cmd.ExecuteReader())
                 {
-                    reader.NextResult();
-                    reader.Read();
-                    var sizeStr = reader.GetString(reader.GetOrdinal("reserved"));
-                    if (sizeStr.Contains("KB"))
+                    cmd.CommandTimeout = 0;
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        var pos = sizeStr.IndexOf("KB", StringComparison.Ordinal);
-                        return long.Parse(sizeStr.Substring(0, pos)) * 1024L;
+                        reader.NextResult();
+                        reader.Read();
+                        var sizeStr = reader.GetString(reader.GetOrdinal("reserved"));
+                        if (sizeStr.Contains("KB"))
+                        {
+                            var pos = sizeStr.IndexOf("KB", StringComparison.Ordinal);
+                            return long.Parse(sizeStr.Substring(0, pos)) * 1024L;
+                        }
+                        // I don't know if this will occur:
+                        if (sizeStr.Contains("MB"))
+                        {
+                            var pos = sizeStr.IndexOf("MB", StringComparison.Ordinal);
+                            return long.Parse(sizeStr.Substring(0, pos)) * 1024L * 1024L;
+                        }
+                        throw new InvalidCastException(string.Format("Unknown units (usually this is KB): {0}", sizeStr));
                     }
-                    // I don't know if this will occur:
-                    if (sizeStr.Contains("MB"))
-                    {
-                        var pos = sizeStr.IndexOf("MB", StringComparison.Ordinal);
-                        return long.Parse(sizeStr.Substring(0, pos)) * 1024L * 1024L;
-                    }
-                    throw new InvalidCastException(string.Format("Unknown units (usually this is KB): {0}", sizeStr));
                 }
             }
 
@@ -296,6 +299,7 @@ namespace MSBackupPipe.Common
 
                 using (var cmd = new SqlCommand(string.Format(sql, databaseName), cnn))
                 {
+                    cmd.CommandTimeout = 0;
                     var param = cmd.CreateParameter();
                     param.SqlDbType = SqlDbType.NVarChar;
                     param.Size = 128;
@@ -342,6 +346,7 @@ namespace MSBackupPipe.Common
 
                 using (var cmd = new SqlCommand(string.Format(sql), cnn))
                 {
+                    cmd.CommandTimeout = 0;
                     var param = cmd.CreateParameter();
                     param.SqlDbType = SqlDbType.NVarChar;
                     param.Size = 128;
@@ -421,6 +426,7 @@ namespace MSBackupPipe.Common
         {
             using (var cmd = new SqlCommand("SELECT @@version;", cnn))
             {
+                cmd.CommandTimeout = 0;
                 return cmd.ExecuteScalar().ToString();
             }
         }
