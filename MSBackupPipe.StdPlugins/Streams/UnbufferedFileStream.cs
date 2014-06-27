@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace MSBackupPipe.StdPlugins.Streams
@@ -35,11 +36,11 @@ namespace MSBackupPipe.StdPlugins.Streams
         //how full is the write buffer?
         private int _writeBufferOffset;
 
-        //is the buffer full?
-        private bool _writeBufferFull;
-
         //is our holding buffer full?
         private bool _flipBufferFull;
+
+        //is our holding buffer full?
+        private bool _readBufferFull;
 
         //how many bytes have we written to the file?
         private long _bytesWritten;
@@ -54,6 +55,8 @@ namespace MSBackupPipe.StdPlugins.Streams
         private readonly Thread _flushingBuffer;
 
         private readonly FileAccess _writeMode;
+
+        private readonly int _bufferSize ;
         #endregion
 
 
@@ -72,6 +75,7 @@ namespace MSBackupPipe.StdPlugins.Streams
         /// <param name="writeMode"></param>
         /// <param name="bufferSize"></param>
         /// <param name="outputFile"></param>
+        /// <param name="estimatedTotalBytes"></param>
         /// ---------------------------------------------------------------------------------------------------------------------------------------------------------
         public UnBufferedFileStream(String outputFile, FileAccess writeMode, int bufferSize, long estimatedTotalBytes)
         {
@@ -79,8 +83,9 @@ namespace MSBackupPipe.StdPlugins.Streams
             _readBuffer = new byte[bufferSize];
             _flipBuffer = new byte[bufferSize];
             _writeMode = writeMode;
+            _bufferSize = bufferSize;
             _lock = new object();
-            
+
             //save our file name for later when we need to flush the tail and set the size.
             _outputfilename = outputFile;
 
@@ -89,19 +94,24 @@ namespace MSBackupPipe.StdPlugins.Streams
             {
                 case FileAccess.Write:
                     //open the file with no buffering to write to it.
-                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024 * 64), FileFlagNoBuffering);
+                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Write, FileShare.None, (1024*64),FileFlagNoBuffering);
+
+                    //if the estimatedTotalBytes isn't evenly divisible by 4k, our assumed on disk sector size then make it so.
+                    if ((estimatedTotalBytes%4096) > 1)
+                    {
+                        var blocks = estimatedTotalBytes/4096;
+                        estimatedTotalBytes = 4096*blocks;
+                    }
+
                     _outfile.SetLength(estimatedTotalBytes);
                     //start the write buffer flush thread
                     _flushingBuffer = new Thread(FlushWriteBuffer);
                     _flushingBuffer.Start();
                     break;
                 case FileAccess.Read:
-                    _outfile = new FileStream(outputFile, FileMode.Create, FileAccess.Read, FileShare.None, (1024 * 64), FileFlagNoBuffering);
+                    _outfile = new FileStream(outputFile, FileMode.Open, FileAccess.Read, FileShare.None, (1024*64),FileOptions.WriteThrough);
                     break;
             }
-
-
-
         }
 
         // Get the base _stream that underlies this one.
@@ -165,10 +175,24 @@ namespace MSBackupPipe.StdPlugins.Streams
         /// Wes Brown, 5/26/2009. 
         /// </remarks>
         ///-------------------------------------------------------------------------------------------------
-        public override int Read(byte[] buffer, int offset, int count)
+        public override int Read([In, Out] byte[] buffer, int offset, int count)
         {
-            _outfile.Read(_readBuffer, 0, _readBuffer.Length);
-            return _readBuffer.Length;
+            if (buffer == null)
+                throw new ArgumentNullException("buffer");
+            if (!CanRead)
+                throw new NotSupportedException("Stream does not support reading");
+            var len = buffer.Length;
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException("offset", "< 0");
+            if (count < 0)
+                throw new ArgumentOutOfRangeException("count", "< 0");
+            if (offset > len)
+                throw new ArgumentException("destination offset is beyond array size");
+
+            Console.WriteLine("buffer.size: {0}", len);
+            Console.WriteLine("offset     : {0}", offset);
+            Console.WriteLine("count      : {0}", count);
+            return _outfile.Read(buffer, offset, count);
         }
 
         ///-------------------------------------------------------------------------------------------------
@@ -184,22 +208,31 @@ namespace MSBackupPipe.StdPlugins.Streams
                 // buffer can still be filled --> we fill
                 // buffer is full --> we write to file
                 // buffer+incomming will overflow the buffer --> we write to file and put the remainder in the buffer
+
                 // 1. there is enough room, the buffer is not full
                 _writeLength = _writeBufferOffset + count;
                 if (_writeLength <= _writeBuffer.Length)
                 {
                     Buffer.BlockCopy(buffer, offset, _writeBuffer, _writeBufferOffset, count);
                     _writeBufferOffset += count;
+
                     // 2. same size: write
                     if (_writeBufferOffset == _writeBuffer.Length)
                     {
                         lock (_lock)
                         {
-                            Buffer.BlockCopy(_writeBuffer,0,_readBuffer,0,_writeBuffer.Length);
-                            _writeBufferFull = true;
+                            if (!_readBufferFull)
+                            {
+                                Buffer.BlockCopy(_writeBuffer, 0, _readBuffer, 0, _writeBuffer.Length);
+                                _bytesWritten += _writeBuffer.Length;
+                                _writeBufferOffset = 0;
+                                _readBufferFull = true;
+                            }
+                            else
+                            {
+                                Thread.SpinWait(10);
+                            }
                         }
-                        _bytesWritten += _writeBuffer.Length;
-                        _writeBufferOffset = 0;
                     }
                 }
                 // 3. buffer overflow: write full buffer and put remainder in buffer
@@ -210,15 +243,21 @@ namespace MSBackupPipe.StdPlugins.Streams
 
                     lock (_lock)
                     {
-                        Buffer.BlockCopy(_writeBuffer, 0, _readBuffer, 0, _writeBuffer.Length);
-                        _writeBufferFull = true;
+                        if (!_readBufferFull)
+                        {
+                            Buffer.BlockCopy(_writeBuffer, 0, _readBuffer, 0, _writeBuffer.Length);
+                            _bytesWritten += _writeBuffer.Length;
+                            // set the new offset and count to put the remainder of the incoming buffer in our write buffer
+                            offset = offset + (_writeBuffer.Length - _writeBufferOffset);
+                            count = count - (_writeBuffer.Length - _writeBufferOffset);
+                            _writeBufferOffset = 0;
+                            _readBufferFull = true;
+                        }
+                        else
+                        {
+                            Thread.SpinWait(10);
+                        }
                     }
-
-                    _bytesWritten += _writeBuffer.Length;
-                    // set the new offset and count to put the remainder of the incoming buffer in our write buffer
-                    offset = offset + (_writeBuffer.Length - _writeBufferOffset);
-                    count = count - (_writeBuffer.Length - _writeBufferOffset);
-                    _writeBufferOffset = 0;
                     continue;                
                 }
                 break;
@@ -240,7 +279,7 @@ namespace MSBackupPipe.StdPlugins.Streams
             {
                 case FileAccess.Write:
                     //if we are flushing the write buffer then just wait for a bit.
-                    while (_flipBufferFull || _writeBufferFull)
+                    while (_flipBufferFull || _readBufferFull)
                     {
                         Thread.SpinWait(10);
                     }
@@ -249,7 +288,15 @@ namespace MSBackupPipe.StdPlugins.Streams
                         //if we have a partial buffer flush the whole thing to disk.
                         if (_writeBufferOffset > 0)
                         {
-                            _outfile.Write(_writeBuffer, 0, _writeBuffer.Length);
+                            var blocks = 0;
+                            //don't write a whole buffer to disk only the part that is used plus enough to round it to the next 4k sector size.
+                            if ((_writeBufferOffset%4096) > 1)
+                            {
+                                blocks = _writeBufferOffset/4096;
+                                blocks = 4096*blocks;
+                            }
+
+                            _outfile.Write(_writeBuffer, 0, blocks);
                             _bytesWritten += (_writeBufferOffset);
                             _writeBufferOffset = 0;
                         }
@@ -278,9 +325,9 @@ namespace MSBackupPipe.StdPlugins.Streams
                     }
                     break;
                 case FileAccess.Read:
-                    {
-                        _outfile.Close();
-                    }
+                {
+                    _outfile.Close();
+                }
                     break;
             }
         }
@@ -294,26 +341,32 @@ namespace MSBackupPipe.StdPlugins.Streams
         /// -------------------------------------------------------------------------------------------------
         private void FlushWriteBuffer()
         {
-            const int flushsize = 1024*64;
+            int flushsize = 1048576*4;
+            Console.WriteLine(flushsize);
             while (true)
             {
-                if (_writeBufferFull)
+                //if the read buffer is full AND our holding buffer isn't full 
+                //THEN flush the read buffer into the holding buffer and write it out to disk.
+                if (_readBufferFull && !_flipBufferFull)
                 {
                     lock (_lock)
                     {
                         Buffer.BlockCopy(_readBuffer, 0, _flipBuffer, 0, _readBuffer.Length);
-                        _writeBufferFull = false;
                         _flipBufferFull = true;
+                        _readBufferFull = false;
                     }
-                    //write out whole buffer
+                    //write out whole buffer in chunks to disk
+                    //TODO: tie this to maxtransfersize or add a maxtransfersizeout parameter
                     var i = 0;
-                    while (i < _flipBuffer.Length)
-                    {
-                        _outfile.Write(_flipBuffer, i, flushsize);
-                        i += flushsize;
-                    }
+                        while (i < _flipBuffer.Length)
+                        {
+                            _outfile.Write(_flipBuffer, i, flushsize);
+                            i += flushsize;
+                        }
                     lock (_lock)
+                    {
                         _flipBufferFull = false;
+                    }
                 }
                 else
                 {
