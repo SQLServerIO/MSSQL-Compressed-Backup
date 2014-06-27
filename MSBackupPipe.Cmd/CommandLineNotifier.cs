@@ -135,7 +135,6 @@ namespace MSBackupPipe.Cmd
                     bytesByUnit = bytesRead;
                 }
                 var bytesCompleted = "";
-                //TODO: BUG apparently there is a possibility that we will get a zero length string back
                 //FIXED: BUG had to do with a large number coming back where the first digits were more than 3. so 
                 // if bytesByUnit = 1001.123324523654 came back then it would blow up the call to new string() with a lenght error.
                 if (string.Format("{0:0.00}", bytesByUnit).Length <= 7)

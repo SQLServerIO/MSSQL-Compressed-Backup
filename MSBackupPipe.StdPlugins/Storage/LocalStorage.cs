@@ -96,8 +96,6 @@ namespace MSBackupPipe.StdPlugins.Storage
             //native .net FileStream uses OS buffer
             //results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Create)));
 
-            //TODO: preallocate file to speed up writes and cut down on fragmentations
-
             return results.ToArray();
         }
 

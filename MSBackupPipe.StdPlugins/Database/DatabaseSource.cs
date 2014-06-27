@@ -28,8 +28,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-
-//Additional includes other than default dot net framework should go here.
 using System.Linq;
 
 namespace MSBackupPipe.StdPlugins.Database
@@ -230,13 +228,13 @@ namespace MSBackupPipe.StdPlugins.Database
                 }
                 withOptions.Add(string.Format("BUFFERCOUNT={0}", valInt));
             }
-            //TODO: add validator for maxtransfersize other than is number
+            
             if (config.ContainsKey("MAXTRANSFERSIZE"))
             {
                 var valList = config["MAXTRANSFERSIZE"];
                 if (valList.Count != 1)
                 {
-                    throw new ArgumentException("MAXTRANSFERSIZE parameter must have a value.");
+                    throw new ArgumentException("MAXTRANSFERSIZE parameter must have a value between 65536 and 4194304.");
                 }
                 var val = valList[0];
                 int valInt;
@@ -244,23 +242,72 @@ namespace MSBackupPipe.StdPlugins.Database
                 {
                     throw new ArgumentException(string.Format("MAXTRANSFERSIZE parameter was not a number: {0}", val));
                 }
+                else if ((valInt % 65536) > 1)
+                {
+                    throw new ArgumentException(string.Format("MAXTRANSFERSIZE parameter must be a multiple of 65536: {0}", val));
+                }
+                else if ((valInt > 4194304) || (valInt < 65536))
+                {
+                    throw new ArgumentException(string.Format("MAXTRANSFERSIZE parameter cannot be larger than 4194304 or smaller than 65536: {0}", val));
+                }
+
                 withOptions.Add(string.Format("MAXTRANSFERSIZE={0}", valInt));
             }
-            //TODO: add validator for blocksize other than is number
+
             if (config.ContainsKey("BLOCKSIZE"))
             {
                 var valList = config["BLOCKSIZE"];
                 if (valList.Count != 1)
                 {
-                    throw new ArgumentException("BlockSize parameter must have a value.");
+                    throw new ArgumentException("BLOCKSIZE parameter must have a value.");
                 }
                 var val = valList[0];
                 int valInt;
                 if (!int.TryParse(val, out valInt))
                 {
-                    throw new ArgumentException(string.Format("BlockSize parameter was not a number: {0}", val));
+                    throw new ArgumentException(string.Format("BLOCKSIZE parameter was not a number: {0}", val));
                 }
-                withOptions.Add(string.Format("BlockSize={0}", valInt));
+                else if ((valInt % 512) > 1)
+                {
+                    throw new ArgumentException(string.Format("BLOCKSIZE parameter must be a multiple of 512: {0}", val));
+                }
+
+                else if (valInt == 512)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else if (valInt == 1024)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else if (valInt == 2048)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else if (valInt == 4096)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else if (valInt == 8192)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else if (valInt == 16384)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else if (valInt == 32768)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else if (valInt == 65536)
+                {
+                    withOptions.Add(string.Format("BlockSize={0}", valInt));
+                }
+                else
+                {
+                    throw new ArgumentException(string.Format("BLOCKSIZE must be 512, 1024, 2048, 4096, 8192, 16384, 32768, or 65536: {0}", val));
+                }
             }
 
             //TODO: add validator for STATS other than is number

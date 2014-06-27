@@ -342,7 +342,6 @@ namespace MSBackupPipe.StdPlugins.Streams
         private void FlushWriteBuffer()
         {
             int flushsize = 1048576*4;
-            Console.WriteLine(flushsize);
             while (true)
             {
                 //if the read buffer is full AND our holding buffer isn't full 
