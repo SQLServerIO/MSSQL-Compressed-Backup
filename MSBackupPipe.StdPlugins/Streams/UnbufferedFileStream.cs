@@ -189,9 +189,9 @@ namespace MSBackupPipe.StdPlugins.Streams
             if (offset > len)
                 throw new ArgumentException("destination offset is beyond array size");
 
-            Console.WriteLine("buffer.size: {0}", len);
-            Console.WriteLine("offset     : {0}", offset);
-            Console.WriteLine("count      : {0}", count);
+            //Console.WriteLine("buffer.size: {0}", len);
+            //Console.WriteLine("offset     : {0}", offset);
+            //Console.WriteLine("count      : {0}", count);
             return _outfile.Read(buffer, offset, count);
         }
 
@@ -293,7 +293,7 @@ namespace MSBackupPipe.StdPlugins.Streams
                             if ((_writeBufferOffset%4096) > 1)
                             {
                                 blocks = _writeBufferOffset/4096;
-                                blocks = 4096*blocks;
+                                blocks = 4096*(blocks+1);
                             }
 
                             _outfile.Write(_writeBuffer, 0, blocks);
@@ -341,7 +341,7 @@ namespace MSBackupPipe.StdPlugins.Streams
         /// -------------------------------------------------------------------------------------------------
         private void FlushWriteBuffer()
         {
-            int flushsize = 1048576*4;
+            const int flushsize = 1048576*1;
             while (true)
             {
                 //if the read buffer is full AND our holding buffer isn't full 
@@ -362,6 +362,41 @@ namespace MSBackupPipe.StdPlugins.Streams
                             _outfile.Write(_flipBuffer, i, flushsize);
                             i += flushsize;
                         }
+                    lock (_lock)
+                    {
+                        _flipBufferFull = false;
+                    }
+                }
+                else
+                {
+                    Thread.SpinWait(10);
+                }
+            }
+        }
+
+        private void GetReadBuffer()
+        {
+            const int flushsize = 1048576 * 1;
+            while (true)
+            {
+                //if the read buffer is full AND our holding buffer isn't full 
+                //THEN flush the read buffer into the holding buffer and write it out to disk.
+                if (_readBufferFull && !_flipBufferFull)
+                {
+                    lock (_lock)
+                    {
+                        Buffer.BlockCopy(_readBuffer, 0, _flipBuffer, 0, _readBuffer.Length);
+                        _flipBufferFull = true;
+                        _readBufferFull = false;
+                    }
+                    //write out whole buffer in chunks to disk
+                    //TODO: tie this to maxtransfersize or add a maxtransfersizeout parameter
+                    var i = 0;
+                    while (i < _flipBuffer.Length)
+                    {
+                        _outfile.Write(_flipBuffer, i, flushsize);
+                        i += flushsize;
+                    }
                     lock (_lock)
                     {
                         _flipBufferFull = false;
