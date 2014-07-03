@@ -121,8 +121,8 @@ namespace MSBackupPipe.StdPlugins.Storage
             estimatedTotalBytes = combinedSize;
 
             var results = new List<Stream>(fileInfos.Count);
-            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Read, (1024 * 1024 * 32), 0)));
-            //results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Open)));
+//            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Read, (1024 * 1024 * 32), 0)));
+            results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Open)));
             return results.ToArray();
         }
 
