@@ -85,7 +85,7 @@ namespace MSBackupPipe.StdPlugins.Storage
                 Console.WriteLine("path={0}", fi.FullName);
             }
 
-            var preAllocationSize = estimatedTotalBytes / 2 / fileInfos.Count;
+            var preAllocationSize = estimatedTotalBytes / 4 / fileInfos.Count;
             var results = new List<Stream>(fileInfos.Count);
             //my unbuffered filestream.
             results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Write, (1024 * 1024 * 32), preAllocationSize)));
@@ -121,8 +121,8 @@ namespace MSBackupPipe.StdPlugins.Storage
             estimatedTotalBytes = combinedSize;
 
             var results = new List<Stream>(fileInfos.Count);
-//            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Read, (1024 * 1024 * 32), 0)));
-            results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Open)));
+            results.AddRange(fileInfos.Select(fi => new UnBufferedFileStream(fi.FullName, FileAccess.Read, (1024 * 1024 * 32), 0)));
+            //results.AddRange(fileInfos.Select(fi => fi.Open(FileMode.Open)));
             return results.ToArray();
         }
 
