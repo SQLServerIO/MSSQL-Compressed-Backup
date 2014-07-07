@@ -230,7 +230,7 @@ namespace MSBackupPipe.StdPlugins.Streams
                             }
                             else
                             {
-                                Thread.SpinWait(10);
+                                Thread.Sleep(1);
                             }
                         }
                     }
@@ -255,7 +255,7 @@ namespace MSBackupPipe.StdPlugins.Streams
                         }
                         else
                         {
-                            Thread.SpinWait(10);
+                            Thread.Sleep(1);
                         }
                     }
                     continue;                
@@ -281,7 +281,7 @@ namespace MSBackupPipe.StdPlugins.Streams
                     //if we are flushing the write buffer then just wait for a bit.
                     while (_flipBufferFull || _readBufferFull)
                     {
-                        Thread.SpinWait(10);
+                        Thread.Sleep(1);
                     }
                     try
                     {
@@ -369,7 +369,7 @@ namespace MSBackupPipe.StdPlugins.Streams
                 }
                 else
                 {
-                    Thread.SpinWait(10);
+                    Thread.Sleep(1);
                 }
             }
         }
@@ -404,7 +404,7 @@ namespace MSBackupPipe.StdPlugins.Streams
                 }
                 else
                 {
-                    Thread.SpinWait(10);
+                    Thread.Sleep(1);
                 }
             }
         }
